@@ -10,8 +10,7 @@ import os
 import struct
 import pytest
 
-from stars_web.block_reader import read_blocks, Block
-from stars_web.file_header import FileHeader
+from stars_web.block_reader import read_blocks
 
 
 # Path to real game files
@@ -115,10 +114,13 @@ class TestXYFileIntegration:
 class TestMFileIntegration:
     """Test parsing Game.m1 and Game.m2 (player turn files, type 3)."""
 
-    @pytest.mark.parametrize("filename,expected_player", [
-        ("Game.m1", 0),
-        ("Game.m2", 1),
-    ])
+    @pytest.mark.parametrize(
+        "filename,expected_player",
+        [
+            ("Game.m1", 0),
+            ("Game.m2", 1),
+        ],
+    )
     def test_m_file_header(self, filename, expected_player):
         data = _read_game_file(filename)
         blocks = read_blocks(data)
@@ -167,10 +169,13 @@ class TestHSTFileIntegration:
 class TestHFileIntegration:
     """Test parsing Game.h1 and Game.h2 (history files, type 4)."""
 
-    @pytest.mark.parametrize("filename,expected_player", [
-        ("Game.h1", 0),
-        ("Game.h2", 1),
-    ])
+    @pytest.mark.parametrize(
+        "filename,expected_player",
+        [
+            ("Game.h1", 0),
+            ("Game.h2", 1),
+        ],
+    )
     def test_h_file_header(self, filename, expected_player):
         data = _read_game_file(filename)
         blocks = read_blocks(data)
@@ -183,18 +188,34 @@ class TestHFileIntegration:
 class TestAllFiles:
     """Cross-cutting tests across all file types."""
 
-    @pytest.mark.parametrize("filename", [
-        "Game.xy", "Game.m1", "Game.m2", "Game.hst", "Game.h1", "Game.h2",
-    ])
+    @pytest.mark.parametrize(
+        "filename",
+        [
+            "Game.xy",
+            "Game.m1",
+            "Game.m2",
+            "Game.hst",
+            "Game.h1",
+            "Game.h2",
+        ],
+    )
     def test_file_starts_with_header_block(self, filename):
         data = _read_game_file(filename)
         blocks = read_blocks(data)
         assert blocks[0].type_id == 8
         assert blocks[0].file_header is not None
 
-    @pytest.mark.parametrize("filename", [
-        "Game.xy", "Game.m1", "Game.m2", "Game.hst", "Game.h1", "Game.h2",
-    ])
+    @pytest.mark.parametrize(
+        "filename",
+        [
+            "Game.xy",
+            "Game.m1",
+            "Game.m2",
+            "Game.hst",
+            "Game.h1",
+            "Game.h2",
+        ],
+    )
     def test_all_blocks_have_valid_type_ids(self, filename):
         data = _read_game_file(filename)
         blocks = read_blocks(data)

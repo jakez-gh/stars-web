@@ -4,8 +4,6 @@ Reference: stars-4x/starsapi-python by raptor.
 The Stars! PRNG uses a combined linear congruential generator with two seeds.
 """
 
-import pytest
-
 from stars_web.stars_random import StarsRandom
 
 

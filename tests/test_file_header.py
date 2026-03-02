@@ -145,9 +145,14 @@ class TestFileHeaderWithRealGameValues:
         """XY file: player=31 (host/universal), type=0"""
         data = _make_header_bytes(
             game_id=0x387B400D,
-            version_major=2, version_minor=83, version_inc=0,
-            turn=0, player_index=31, salt=1103,
-            file_type=0, flags=0,
+            version_major=2,
+            version_minor=83,
+            version_inc=0,
+            turn=0,
+            player_index=31,
+            salt=1103,
+            file_type=0,
+            flags=0,
         )
         hdr = FileHeader(data)
         assert hdr.game_id == 0x387B400D
@@ -159,9 +164,13 @@ class TestFileHeaderWithRealGameValues:
         """M1 file: player=0, type=3"""
         data = _make_header_bytes(
             game_id=0x387B400D,
-            version_major=2, version_minor=83, version_inc=0,
-            turn=0, player_index=0,
-            file_type=3, flags=0,
+            version_major=2,
+            version_minor=83,
+            version_inc=0,
+            turn=0,
+            player_index=0,
+            file_type=3,
+            flags=0,
         )
         hdr = FileHeader(data)
         assert hdr.player_index == 0
@@ -171,9 +180,13 @@ class TestFileHeaderWithRealGameValues:
         """HST file: player=31 (host), type=2"""
         data = _make_header_bytes(
             game_id=0x387B400D,
-            version_major=2, version_minor=83, version_inc=0,
-            turn=0, player_index=31,
-            file_type=2, flags=0,
+            version_major=2,
+            version_minor=83,
+            version_inc=0,
+            turn=0,
+            player_index=31,
+            file_type=2,
+            flags=0,
         )
         hdr = FileHeader(data)
         assert hdr.player_index == 31

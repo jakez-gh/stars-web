@@ -11,9 +11,8 @@ Special: PlanetsBlock (type_id=7) has extra data appended (4 bytes per planet).
 """
 
 import struct
-import pytest
 
-from stars_web.block_reader import Block, read_blocks
+from stars_web.block_reader import read_blocks
 
 
 def _make_block(type_id: int, data: bytes) -> bytes:
@@ -35,9 +34,14 @@ def _make_file_header_block(
 ):
     """Make a complete file header block (type 8) with block header."""
     from tests.test_file_header import _make_header_bytes
+
     header_data = _make_header_bytes(
-        game_id=game_id, turn=turn, player_index=player_index,
-        salt=salt, file_type=file_type, flags=flags,
+        game_id=game_id,
+        turn=turn,
+        player_index=player_index,
+        salt=salt,
+        file_type=file_type,
+        flags=flags,
     )
     return _make_block(8, header_data)
 
@@ -91,6 +95,7 @@ class TestReadBlocks:
         # A type-6 block with 4 bytes of "encrypted" data
         # (we need to encrypt it properly for decryption to work)
         from stars_web.decryptor import Decryptor
+
         dec = Decryptor()
         dec.init_decryption(salt=0, game_id=0, turn=0, player_index=0, shareware=False)
 
