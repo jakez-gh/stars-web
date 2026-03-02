@@ -91,12 +91,23 @@ gh issue view 42
 
 ### Milestones
 
+#### Web Track
+
 | # | Milestone | Description |
 | - | --------- | ----------- |
 | 1 | M0: Infrastructure & Quality | Git hooks, CI, lint, test hygiene |
 | 2 | M1: Complete Read-Only Viewer | Parse ship designs, tech, queues, waypoints |
 | 3 | M2: Issue Orders via Web UI | Waypoints, production, research, .x1 writing |
 | 4 | M3: Playable Turn Loop | Write .x1, run host, reload in browser |
+
+#### Automation Track (Fat Client GUI)
+
+| # | Milestone | Description |
+| - | --------- | ----------- |
+| 5 | MA0: Automation Foundation | Launch Stars! via OTVDM, find window, capture screenshot |
+| 6 | MA1: Read via GUI | Navigate screens, template-match text, cross-verify vs files |
+| 7 | MA2: Command via GUI | Set waypoints, change production, allocate research via clicks |
+| 8 | MA3: Autonomous Play | AI decision loop drives the fat client through full turns |
 
 ## Running Things
 

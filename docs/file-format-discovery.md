@@ -342,7 +342,7 @@ After the 4-byte header, the block contains zero or more **optional sections** b
 1 byte:  pre_env_byte — encodes fractional concentration lengths
          frac_len = ((byte>>4)&3) + ((byte>>2)&3) + (byte&3)
 N bytes: fractional mineral concentration data (frac_len bytes)
-6 bytes: ironium_conc, boranium_conc, germanium_conc, gravity, temperature, radiation 
+6 bytes: ironium_conc, boranium_conc, germanium_conc, gravity, temperature, radiation
 3 bytes: (if terraformed) original gravity, temp, rad
 2 bytes: (if owned) estimates
 ```

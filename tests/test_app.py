@@ -1,6 +1,5 @@
 """Tests for the Flask web application."""
 
-import json
 import os
 
 import pytest

@@ -12,7 +12,7 @@ Reference: stars-4x/starsapi-python by raptor (2014).
 """
 
 import struct
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from stars_web.decryptor import Decryptor
 from stars_web.file_header import FileHeader

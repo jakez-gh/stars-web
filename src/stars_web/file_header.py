@@ -46,15 +46,11 @@ class FileHeader:
 
     def __init__(self, data: bytes | bytearray):
         if len(data) < HEADER_SIZE:
-            raise ValueError(
-                f"File header must be at least {HEADER_SIZE} bytes, got {len(data)}"
-            )
+            raise ValueError(f"File header must be at least {HEADER_SIZE} bytes, got {len(data)}")
 
         self.magic = bytes(data[0:4])
         if self.magic != MAGIC:
-            raise ValueError(
-                f"Invalid magic: expected {MAGIC!r}, got {self.magic!r}"
-            )
+            raise ValueError(f"Invalid magic: expected {MAGIC!r}, got {self.magic!r}")
 
         self.game_id = struct.unpack_from("<I", data, 4)[0]
 

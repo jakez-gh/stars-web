@@ -25,7 +25,12 @@ def create_app(game_dir: str | None = None) -> Flask:
             "STARS_GAME_DIR",
             os.path.join(
                 os.path.dirname(__file__),
-                "..", "..", "..", "autoplay", "tests", "data",
+                "..",
+                "..",
+                "..",
+                "autoplay",
+                "tests",
+                "data",
             ),
         )
 
@@ -72,29 +77,33 @@ def create_app(game_dir: str | None = None) -> Flask:
 
         fleets = []
         for f in state.fleets:
-            fleets.append({
-                "id": f.fleet_id,
-                "owner": f.owner,
-                "x": f.x,
-                "y": f.y,
-                "ship_count": f.ship_count,
-            })
+            fleets.append(
+                {
+                    "id": f.fleet_id,
+                    "owner": f.owner,
+                    "x": f.x,
+                    "y": f.y,
+                    "ship_count": f.ship_count,
+                }
+            )
 
-        return jsonify({
-            "game_id": state.game_id,
-            "year": state.year,
-            "turn": state.turn,
-            "version": state.version,
-            "player_index": state.player_index,
-            "settings": {
-                "game_name": state.settings.game_name,
-                "universe_size": state.settings.universe_size_label,
-                "density": state.settings.density_label,
-                "player_count": state.settings.player_count,
-                "planet_count": state.settings.planet_count,
-            },
-            "planets": planets,
-            "fleets": fleets,
-        })
+        return jsonify(
+            {
+                "game_id": state.game_id,
+                "year": state.year,
+                "turn": state.turn,
+                "version": state.version,
+                "player_index": state.player_index,
+                "settings": {
+                    "game_name": state.settings.game_name,
+                    "universe_size": state.settings.universe_size_label,
+                    "density": state.settings.density_label,
+                    "player_count": state.settings.player_count,
+                    "planet_count": state.settings.planet_count,
+                },
+                "planets": planets,
+                "fleets": fleets,
+            }
+        )
 
     return app

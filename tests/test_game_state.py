@@ -20,14 +20,8 @@ import pytest
 from stars_web.game_state import (
     load_game,
     GameState,
-    Planet,
-    Fleet,
     GameSettings,
-    _parse_planets_from_xy,
-    _parse_planet_block,
-    _parse_fleet_block,
 )
-from stars_web.block_reader import read_blocks
 
 TEST_DATA_DIR = os.path.normpath(
     os.path.join(os.path.dirname(__file__), "..", "..", "autoplay", "tests", "data")
@@ -268,9 +262,7 @@ class TestFleets:
         """
         _skip_if_no_data()
         state = load_game(TEST_DATA_DIR, player=1)
-        scout = next(
-            (f for f in state.fleets if f.x == 1241 and f.y == 1233), None
-        )
+        scout = next((f for f in state.fleets if f.x == 1241 and f.y == 1233), None)
         assert scout is not None, (
             f"No fleet at (1241, 1233). Fleets: "
             f"{[(f.fleet_id, f.x, f.y) for f in state.fleets]}"
