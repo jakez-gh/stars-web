@@ -25,7 +25,7 @@ def create_app(game_dir: str | None = None) -> Flask:
             "STARS_GAME_DIR",
             os.path.join(
                 os.path.dirname(__file__),
-                "..", "..", "..", "..", "autoplay", "tests", "data",
+                "..", "..", "..", "autoplay", "tests", "data",
             ),
         )
 
