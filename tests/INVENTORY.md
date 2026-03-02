@@ -32,7 +32,7 @@ Tests that require data files skip gracefully if the path doesn't exist.
 ## Running
 
 ```bash
-python -m pytest              # all 118 tests
+python -m pytest              # all 130 tests
 python -m pytest -k "blossom" # just Blossom planet tests
 python -m pytest --cov        # with coverage
 ```
