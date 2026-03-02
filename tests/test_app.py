@@ -1,0 +1,120 @@
+"""Tests for the Flask web application."""
+
+import json
+import os
+
+import pytest
+
+from stars_web.app import create_app
+
+
+# Path to test game data — use absolute path resolved from this file's location
+TEST_DATA_DIR = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "autoplay", "tests", "data")
+)
+
+
+def _skip_if_no_data():
+    if not os.path.exists(os.path.join(TEST_DATA_DIR, "Game.xy")):
+        pytest.skip("Test game data not found")
+
+
+class TestAppFactory:
+    """Test Flask app creation."""
+
+    def test_create_app_returns_flask(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        assert app is not None
+
+    def test_app_has_index_route(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        rules = [r.rule for r in app.url_map.iter_rules()]
+        assert "/" in rules
+
+    def test_app_has_api_route(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        rules = [r.rule for r in app.url_map.iter_rules()]
+        assert "/api/game-state" in rules
+
+
+class TestGameStateAPI:
+    """Test the /api/game-state endpoint."""
+
+    def test_returns_json(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            resp = client.get("/api/game-state")
+            assert resp.status_code == 200
+            assert resp.content_type.startswith("application/json")
+
+    def test_has_planets(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            data = client.get("/api/game-state").get_json()
+            assert "planets" in data
+            assert len(data["planets"]) == 32
+
+    def test_has_fleets(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            data = client.get("/api/game-state").get_json()
+            assert "fleets" in data
+            assert len(data["fleets"]) > 0
+
+    def test_has_settings(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            data = client.get("/api/game-state").get_json()
+            settings = data["settings"]
+            assert settings["game_name"] == "Shooting Fish in a Barrel"
+            assert settings["planet_count"] == 32
+
+    def test_planet_has_required_fields(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            data = client.get("/api/game-state").get_json()
+            planet = data["planets"][0]
+            for field in ["id", "name", "x", "y", "owner", "population"]:
+                assert field in planet, f"Missing field: {field}"
+
+    def test_blossom_in_planets(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            data = client.get("/api/game-state").get_json()
+            names = [p["name"] for p in data["planets"]]
+            assert "Blossom" in names
+
+    def test_year_is_2401(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            data = client.get("/api/game-state").get_json()
+            assert data["year"] == 2401
+
+    def test_invalid_dir_returns_500(self):
+        app = create_app(game_dir="/nonexistent/path")
+        with app.test_client() as client:
+            resp = client.get("/api/game-state")
+            assert resp.status_code == 500
+
+
+class TestIndexPage:
+    """Test the star map HTML page."""
+
+    def test_returns_html(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            resp = client.get("/")
+            assert resp.status_code == 200
+            assert b"star-map" in resp.data
+            assert b"Stars!" in resp.data
