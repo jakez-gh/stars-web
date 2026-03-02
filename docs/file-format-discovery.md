@@ -62,12 +62,13 @@ for i in range(0, min(64, len(data)), 16):
 
 You'll see something like:
 
-```
+```text
 0000: 10 20 4a 33 4a 33 xx xx xx xx xx xx xx xx xx xx  . J3J3..........
 0010: xx xx xx xx xx xx xx xx xx xx xx xx xx xx xx xx  ................
 ```
 
 Two things jump out immediately:
+
 - `4a 33 4a 33` = ASCII `J3J3` — a magic signature at offset 2
 - The first two bytes (`10 20`) are *not* part of the magic — they're something else
 
@@ -88,10 +89,12 @@ for ext in ["xy", "m1", "m2", "hst", "h1", "h2"]:
 ```
 
 Every file has `J3J3` at offset 2. This tells you:
+
 - Bytes 0-1 are a 2-byte prefix (some kind of header for the header)
 - Bytes 2-17 are a fixed, readable structure
 
 Look at that 2-byte prefix in binary. For our file it's `0x2010`:
+
 - `0x2010` as a uint16 LE = `0x2010` → binary: `0010 0000 0001 0000`
 - Upper 6 bits: `001000` = 8
 - Lower 10 bits: `0000010000` = 16
@@ -123,7 +126,7 @@ Read through the reference code to understand the overall architecture. Here's w
 
 Every block starts with a 2-byte header:
 
-```
+```text
 uint16 LE:
   bits 10-15: type_id (6 bits → 0-63)
   bits 0-9:   size (10 bits → 0-1023 bytes)
@@ -146,20 +149,20 @@ while offset + 2 <= len(file_bytes):
 
 Known block types from the reference implementations:
 
-| type_id | Name           | Found in        |
-|---------|----------------|-----------------|
-| 0       | File footer    | All files       |
-| 6       | Player/Race    | .m#, .hst       |
-| 7       | Planets (map)  | .xy, .hst       |
-| 8       | File header    | All files       |
-| 13      | Planet (full)  | .hst, .m# (own) |
-| 14      | Planet (partial)| .m# (scanned)  |
-| 16      | Fleet (full)   | .hst, .m# (own) |
-| 17      | Fleet (partial)| .m# (other's)   |
-| 20      | Waypoints      | .m#             |
-| 26      | Ship design    | .m#, .hst       |
-| 28      | Production queue| .m#            |
-| 30      | Battle plans   | .m#             |
+| type_id | Name             | Found in         |
+|---------|------------------|------------------|
+| 0       | File footer      | All files        |
+| 6       | Player/Race      | .m#, .hst        |
+| 7       | Planets (map)    | .xy, .hst        |
+| 8       | File header      | All files        |
+| 13      | Planet (full)    | .hst, .m# (own)  |
+| 14      | Planet (partial) | .m# (scanned)    |
+| 16      | Fleet (full)     | .hst, .m# (own)  |
+| 17      | Fleet (partial)  | .m# (other's)    |
+| 20      | Waypoints        | .m#              |
+| 26      | Ship design      | .m#, .hst        |
+| 28      | Production queue | .m#              |
+| 30      | Battle plans     | .m#              |
 
 ---
 
@@ -167,7 +170,7 @@ Known block types from the reference implementations:
 
 The file header block (type 8, always the first block) contains 16 bytes that initialize decryption:
 
-```
+```text
 Offset  Size  Field
 0-3     4     Magic "J3J3"
 4-7     4     game_id (uint32)
@@ -182,7 +185,7 @@ Offset  Size  Field
 
 Stars! uses **L'Ecuyer's Combined Linear Congruential Generator** — two independent LCGs whose outputs are combined:
 
-```
+```text
 Generator A: multiplier=40014, modulus=2147483563 (0x7FFFFFAB)
 Generator B: multiplier=40692, modulus=2147483399 (0x7FFFFF07)
 ```
@@ -259,7 +262,7 @@ for i in range(0, padded_size, 4):
 
 The type-7 block in the `.xy` file is the best place to start because it contains readable game settings and planet positions. After decryption:
 
-```
+```text
 Offset  Size  Field
 0-3     4     (unknown header)
 4-5     2     universe_size (0=Tiny, 1=Small, 2=Medium, 3=Large, 4=Huge)
@@ -289,6 +292,7 @@ for each planet:
 ### How to verify
 
 Compare parsed planet names and coordinates against the game screen:
+
 1. Take a screenshot of the star map.
 2. Parse the `.xy` file.
 3. Check that your homeworld name matches.
@@ -305,7 +309,7 @@ Type-13 (full detail) and type-14 (partial/scanned) planet blocks appear in `.m#
 
 ### Fixed Header (4 bytes)
 
-```
+```text
 Byte 0:   planet_number[7:0]
 Byte 1:   planet_number[10:8] (bits 0-2) | owner[4:0] (bits 3-7)
 Bytes 2-3: flags (uint16 LE)
@@ -315,7 +319,7 @@ Owner value 31 (0x1F) means unowned.
 
 ### Flag Bits
 
-```
+```text
 Bit 0:  NOT remote mining (inverted meaning!)
 Bit 1:  has environment info
 Bit 2:  is in use
@@ -334,7 +338,7 @@ After the 4-byte header, the block contains zero or more **optional sections** b
 
 **Section 1: Environment** (if visible — determined by a combination of flags)
 
-```
+```text
 1 byte:  pre_env_byte — encodes fractional concentration lengths
          frac_len = ((byte>>4)&3) + ((byte>>2)&3) + (byte&3)
 N bytes: fractional mineral concentration data (frac_len bytes)
@@ -347,7 +351,7 @@ N bytes: fractional mineral concentration data (frac_len bytes)
 
 Uses a **variable-length integer encoding** that's worth understanding:
 
-```
+```text
 1 byte: length code byte
   bits 0-1: ironium code
   bits 2-3: boranium code
@@ -365,7 +369,7 @@ Population is stored in hundreds (divide by 100 for display... or rather, multip
 
 **Section 3: Installations** (if has_installations)
 
-```
+```text
 1 byte:  excess population
 1 byte:  mines_low (lower 8 bits)
 1 byte:  packed — mines_high[3:0] (lower 4 bits) | factories_low[3:0] (upper 4 bits)
@@ -381,7 +385,7 @@ factories = ((packed & 0xF0) >> 4) | (factories_high << 4)
 
 Here's a real hex dump with annotations:
 
-```
+```text
 Offset  Hex         Meaning
 ------  ----------  -------
 0-1     11 00       planet_number = 0x011 & 0x7FF = 17, owner = (0x00>>3) = 0
@@ -425,7 +429,7 @@ We found this is **wrong** through careful byte counting.
 
 Type-14 planet 17 (a partial/scanned planet): total block size = 11 bytes.
 
-```
+```text
 4 bytes: fixed header
 1 byte:  pre_env_byte = 0x00
 ? bytes: frac data
@@ -453,7 +457,7 @@ Fleet blocks are simpler than planets but still variable-length.
 
 ### Fixed Header (14 bytes)
 
-```
+```text
 Byte 0:   fleet_number[7:0]
 Byte 1:   fleet_number[8] (bit 0) | owner[6:0] (bits 1-7)
 Bytes 2-3: (unknown)
@@ -528,14 +532,14 @@ We found that our test data files are **turn 1** (year 2401) while our screensho
 
 ### Common Pitfalls
 
-| Pitfall | Symptom | Fix |
-|---------|---------|-----|
-| Wrong byte order | Coordinates are nonsensical | Stars! uses little-endian everywhere |
-| PRNG matches but data is garbage | First block decrypts fine, subsequent don't | Check init_rounds calculation |
-| Population off by 100x | 268 instead of 26,800 | Population is stored in hundreds |
-| Turn mismatch | Values close but not exact | Screenshots are N+1, files are N |
-| frac_len +1 | Block overflow on small planets | Remove the erroneous +1 |
-| Owner = 31 | Planet appears owned | 31 means unowned (sentinel value) |
+| Pitfall                          | Symptom                                      | Fix                                        |
+|----------------------------------|----------------------------------------------|--------------------------------------------|
+| Wrong byte order                 | Coordinates are nonsensical                  | Stars! uses little-endian everywhere       |
+| PRNG matches but data is garbage | First block decrypts fine, subsequent don't  | Check init_rounds calculation              |
+| Population off by 100x           | 268 instead of 26,800                        | Population is stored in hundreds           |
+| Turn mismatch                    | Values close but not exact                   | Screenshots are N+1, files are N           |
+| frac_len +1                      | Block overflow on small planets              | Remove the erroneous +1                    |
+| Owner = 31                       | Planet appears owned                         | 31 means unowned (sentinel value)          |
 
 ---
 

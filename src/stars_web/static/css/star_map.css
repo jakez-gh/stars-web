@@ -54,6 +54,7 @@ body {
 #controls label {
     cursor: pointer;
     white-space: nowrap;
+    -webkit-user-select: none;
     user-select: none;
     color: #aaa;
     font-size: 12px;

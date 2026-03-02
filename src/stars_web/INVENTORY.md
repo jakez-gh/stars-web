@@ -5,7 +5,7 @@ Core library for parsing Stars! binary file formats and assembling game state.
 ## Files
 
 | File | Description |
-|------|-------------|
+| ---- | ----------- |
 | __init__.py | Package marker (empty) |
 | stars_random.py | L'Ecuyer Combined LCG PRNG — used for XOR encryption |
 | decryptor.py | Derives PRNG seeds from file header, decrypts block data |
@@ -16,7 +16,7 @@ Core library for parsing Stars! binary file formats and assembling game state.
 
 ## Data Flow
 
-```
+```text
 Game.xy / Game.m1 / Game.hst  (raw bytes)
   → block_reader.read_blocks()
       → file_header.FileHeader  (from type-8 block)

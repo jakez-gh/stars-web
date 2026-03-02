@@ -4,13 +4,15 @@ Documentation for the stars_web project.
 
 ## Files
 
-| File | Description |
-|------|-------------|
+| File                     | Description                                                                                                                                                                           |
+|--------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | file-format-discovery.md | Tutorial: how to reverse-engineer Stars! binary file formats from scratch. Covers hex dumps, block envelopes, PRNG, encryption, planet/fleet parsing, and the frac_len bug discovery. |
+| DEPENDENCIES.md          | Mermaid dependency graph of GitHub issues — renders visually on GitHub.                                                                                                               |
 
 ## Folders
 
-| Folder | Description |
-|--------|-------------|
-| images/ | Reference screenshots and game data files for cross-verification |
-| images/original_fat_client_screenshots/ | Screenshots from the Stars! fat client used to verify parser output |
+| Folder                                  | Description                                                                    |
+|-----------------------------------------|--------------------------------------------------------------------------------|
+| images/                                 | Reference screenshots and game data files for cross-verification               |
+| images/original_fat_client_screenshots/ | Screenshots from the Stars! fat client used to verify parser output            |
+| llm/                                    | LLM agent artifacts — onboarding notes, session context                        |
