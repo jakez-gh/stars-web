@@ -8,22 +8,76 @@ The Decryptor handles:
 Reference: stars-4x/starsapi-python by raptor (2014).
 """
 
-import pytest
-
 from stars_web.decryptor import Decryptor
 
 
 # The Stars! primes table (64 entries, note: 279 is NOT prime but is
 # in the original Stars! code and must be preserved for compatibility)
 EXPECTED_PRIMES = [
-    3, 5, 7, 11, 13, 17, 19, 23,
-    29, 31, 37, 41, 43, 47, 53, 59,
-    61, 67, 71, 73, 79, 83, 89, 97,
-    101, 103, 107, 109, 113, 127, 131, 137,
-    139, 149, 151, 157, 163, 167, 173, 179,
-    181, 191, 193, 197, 199, 211, 223, 227,
-    229, 233, 239, 241, 251, 257, 263, 279,
-    271, 277, 281, 283, 293, 307, 311, 313,
+    3,
+    5,
+    7,
+    11,
+    13,
+    17,
+    19,
+    23,
+    29,
+    31,
+    37,
+    41,
+    43,
+    47,
+    53,
+    59,
+    61,
+    67,
+    71,
+    73,
+    79,
+    83,
+    89,
+    97,
+    101,
+    103,
+    107,
+    109,
+    113,
+    127,
+    131,
+    137,
+    139,
+    149,
+    151,
+    157,
+    163,
+    167,
+    173,
+    179,
+    181,
+    191,
+    193,
+    197,
+    199,
+    211,
+    223,
+    227,
+    229,
+    233,
+    239,
+    241,
+    251,
+    257,
+    263,
+    279,
+    271,
+    277,
+    281,
+    283,
+    293,
+    307,
+    311,
+    313,
 ]
 
 
@@ -115,7 +169,7 @@ class TestDecryptBytes:
 
         # Get what the PRNG would produce
         from stars_web.stars_random import StarsRandom
-        primes = EXPECTED_PRIMES
+
         # salt=0: index1=0, index2=0, bit10=0 → index2 += 32
         # seed1=primes[0]=3, seed2=primes[32]=139
         # rounds = 1 (from (1*1*1)+0)
@@ -123,10 +177,10 @@ class TestDecryptBytes:
         expected_xor = rng_check.next_random()
 
         # Create "encrypted" data by XORing known plaintext with expected XOR
-        plaintext = b'\x01\x02\x03\x04'
-        plain_int = int.from_bytes(plaintext, 'little')
+        plaintext = b"\x01\x02\x03\x04"
+        plain_int = int.from_bytes(plaintext, "little")
         enc_int = plain_int ^ expected_xor
-        encrypted = enc_int.to_bytes(4, 'little')
+        encrypted = enc_int.to_bytes(4, "little")
 
         result = dec.decrypt_bytes(bytearray(encrypted))
         assert bytes(result) == plaintext
@@ -138,14 +192,15 @@ class TestDecryptBytes:
 
         # 3 bytes → padded to 4, decrypted, then trimmed back to 3
         from stars_web.stars_random import StarsRandom
+
         rng_check = StarsRandom(seed1=3, seed2=139, init_rounds=1)
         xor_val = rng_check.next_random()
 
-        plaintext = b'\xAA\xBB\xCC'
-        padded_plain = b'\xAA\xBB\xCC\x00'
-        plain_int = int.from_bytes(padded_plain, 'little')
+        plaintext = b"\xAA\xBB\xCC"
+        padded_plain = b"\xAA\xBB\xCC\x00"
+        plain_int = int.from_bytes(padded_plain, "little")
         enc_int = plain_int ^ xor_val
-        encrypted = enc_int.to_bytes(4, 'little')[:3]  # Only 3 bytes stored
+        encrypted = enc_int.to_bytes(4, "little")[:3]  # Only 3 bytes stored
 
         result = dec.decrypt_bytes(bytearray(encrypted))
         assert len(result) == 3
@@ -157,14 +212,15 @@ class TestDecryptBytes:
         dec.init_decryption(salt=0, game_id=0, turn=0, player_index=0, shareware=False)
 
         from stars_web.stars_random import StarsRandom
+
         rng_check = StarsRandom(seed1=3, seed2=139, init_rounds=1)
         xor1 = rng_check.next_random()
         xor2 = rng_check.next_random()
 
-        plaintext = b'\x01\x02\x03\x04\x05\x06\x07\x08'
-        chunk1 = int.from_bytes(plaintext[0:4], 'little') ^ xor1
-        chunk2 = int.from_bytes(plaintext[4:8], 'little') ^ xor2
-        encrypted = chunk1.to_bytes(4, 'little') + chunk2.to_bytes(4, 'little')
+        plaintext = b"\x01\x02\x03\x04\x05\x06\x07\x08"
+        chunk1 = int.from_bytes(plaintext[0:4], "little") ^ xor1
+        chunk2 = int.from_bytes(plaintext[4:8], "little") ^ xor2
+        encrypted = chunk1.to_bytes(4, "little") + chunk2.to_bytes(4, "little")
 
         result = dec.decrypt_bytes(bytearray(encrypted))
         assert bytes(result) == plaintext

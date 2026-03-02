@@ -142,9 +142,7 @@ def _parse_planets_from_xy(blocks: list[Block]) -> tuple[list[Planet], GameSetti
 
         # Game name at bytes 32-63
         game_name_raw = data[32:64]
-        settings.game_name = game_name_raw.split(b"\x00")[0].decode(
-            "ascii", errors="replace"
-        )
+        settings.game_name = game_name_raw.split(b"\x00")[0].decode("ascii", errors="replace")
 
         # Planet coordinates from extra_data
         x = 1000
@@ -205,9 +203,9 @@ def _parse_planet_block(block: Block, planets_by_id: dict[int, Planet]) -> None:
     has_starbase = bool(flags & 0x0200)
     is_terraformed = bool(flags & 0x0400)
     has_installations = bool(flags & 0x0800)
-    has_artifact = bool(flags & 0x1000)
+    _has_artifact = bool(flags & 0x1000)
     has_surface_minerals = bool(flags & 0x2000)
-    has_route = bool(flags & 0x4000)
+    _has_route = bool(flags & 0x4000)
 
     planet = planets_by_id.get(planet_number)
     if planet is None:
@@ -220,9 +218,7 @@ def _parse_planet_block(block: Block, planets_by_id: dict[int, Planet]) -> None:
     idx = 4
 
     # Section 1: Environment info
-    can_see_env = has_env_info or (
-        (has_surface_minerals or is_in_use) and not bit_off_for_remote
-    )
+    can_see_env = has_env_info or ((has_surface_minerals or is_in_use) and not bit_off_for_remote)
     if can_see_env and idx < len(data):
         # Pre-environment length byte encodes how many fractional
         # mineral concentration bytes follow. Each 2-bit field
@@ -231,11 +227,7 @@ def _parse_planet_block(block: Block, planets_by_id: dict[int, Planet]) -> None:
         # yields frac_len=0, giving exact fit: 4+1+0+6=11).
         pre_env_byte = data[idx]
         idx += 1
-        frac_len = (
-            ((pre_env_byte >> 4) & 3)
-            + ((pre_env_byte >> 2) & 3)
-            + (pre_env_byte & 3)
-        )
+        frac_len = ((pre_env_byte >> 4) & 3) + ((pre_env_byte >> 2) & 3) + (pre_env_byte & 3)
         idx += frac_len  # Skip fractional mineral concentration bytes
 
         if idx + 6 <= len(data):
@@ -306,7 +298,7 @@ def _parse_fleet_block(block: Block) -> Fleet | None:
 
     fleet_number = data[0] | ((data[1] & 0x01) << 8)
     owner = (data[1] >> 1) & 0x7F
-    kind_byte = data[4]
+    _kind_byte = data[4]  # fleet type; will be used for fleet classification
     x = struct.unpack_from("<H", data, 8)[0]
     y = struct.unpack_from("<H", data, 10)[0]
     ship_types_mask = struct.unpack_from("<H", data, 12)[0]
@@ -377,8 +369,7 @@ def load_game(game_dir: str, player: int = 0) -> GameState:
         m_files = sorted(
             f
             for f in os.listdir(game_dir)
-            if f.lower().startswith(game_prefix.lower() + ".m")
-            and f[-1].isdigit()
+            if f.lower().startswith(game_prefix.lower() + ".m") and f[-1].isdigit()
         )
         if m_files:
             player = int(m_files[0].rsplit(".m", 1)[1])
