@@ -8,3 +8,5 @@ build/
 .eggs/
 htmlcov/
 .coverage
+.vscode/
+docs/tmp/
