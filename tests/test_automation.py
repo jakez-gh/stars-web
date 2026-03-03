@@ -655,3 +655,257 @@ class TestCrossVerifierReport:
         s = report.summary()
         assert "Planet Y" in s
         assert "shields" in s
+
+
+# ===========================================================================
+# Commander
+# ===========================================================================
+
+
+class TestWaypointSetter:
+    """WaypointSetter calls the correct Input methods in order."""
+
+    def test_set_calls_click_right_click_return(self) -> None:
+        if sys.platform != "win32":
+            pytest.skip("Windows only")
+
+        from stars_web.automation.commander import WaypointSetter
+        from stars_web.automation.window import StarsWindow
+
+        win = StarsWindow(hwnd=1)
+        ws = WaypointSetter(win, settle_delay=0)
+
+        calls: list[str] = []
+
+        with (
+            mock.patch.object(win, "focus"),
+            mock.patch(
+                "stars_web.automation.commander.Input.click",
+                side_effect=lambda *a: calls.append("click"),
+            ),
+            mock.patch(
+                "stars_web.automation.commander.Input.right_click",
+                side_effect=lambda *a: calls.append("right_click"),
+            ),
+            mock.patch(
+                "stars_web.automation.commander.Input.key",
+                side_effect=lambda *a: calls.append("key"),
+            ),
+            mock.patch("time.sleep"),
+        ):
+            ws.set(100, 200, 300, 400, confirm=True)
+
+        assert calls.count("click") == 1
+        assert calls.count("right_click") == 1
+        assert calls.count("key") == 2  # Enter x2 (menu pick + confirm)
+
+    def test_set_no_confirm(self) -> None:
+        if sys.platform != "win32":
+            pytest.skip("Windows only")
+
+        from stars_web.automation.commander import WaypointSetter
+        from stars_web.automation.window import StarsWindow
+
+        win = StarsWindow(hwnd=1)
+        ws = WaypointSetter(win, settle_delay=0)
+
+        calls: list[str] = []
+
+        with (
+            mock.patch.object(win, "focus"),
+            mock.patch(
+                "stars_web.automation.commander.Input.click",
+                side_effect=lambda *a: calls.append("click"),
+            ),
+            mock.patch(
+                "stars_web.automation.commander.Input.right_click",
+                side_effect=lambda *a: calls.append("right_click"),
+            ),
+            mock.patch(
+                "stars_web.automation.commander.Input.key",
+                side_effect=lambda *a: calls.append("key"),
+            ),
+            mock.patch("time.sleep"),
+        ):
+            ws.set(100, 200, 300, 400, confirm=False)
+
+        assert calls.count("key") == 1  # only one Enter (menu pick)
+
+
+class TestProductionEditor:
+    """ProductionEditor calls the correct Input methods."""
+
+    def test_open_double_clicks(self) -> None:
+        if sys.platform != "win32":
+            pytest.skip("Windows only")
+
+        from stars_web.automation.commander import ProductionEditor
+        from stars_web.automation.window import StarsWindow
+
+        win = StarsWindow(hwnd=1)
+        pe = ProductionEditor(win, settle_delay=0)
+
+        click_count = []
+
+        with (
+            mock.patch.object(win, "focus"),
+            mock.patch(
+                "stars_web.automation.commander.Input.click",
+                side_effect=lambda *a: click_count.append(1),
+            ),
+            mock.patch("time.sleep"),
+        ):
+            pe.open(200, 300)
+
+        assert sum(click_count) == 2
+
+    def test_confirm_sends_return(self) -> None:
+        if sys.platform != "win32":
+            pytest.skip("Windows only")
+
+        from stars_web.automation.commander import ProductionEditor
+        from stars_web.automation.window import StarsWindow
+
+        win = StarsWindow(hwnd=1)
+        pe = ProductionEditor(win, settle_delay=0)
+
+        from stars_web.automation.input import Input
+
+        with (
+            mock.patch.object(win, "focus"),
+            mock.patch("stars_web.automation.commander.Input.key") as mock_key,
+            mock.patch("time.sleep"),
+        ):
+            pe.confirm()
+
+        mock_key.assert_called_once_with(Input.VK_RETURN)
+
+    def test_cancel_sends_escape(self) -> None:
+        if sys.platform != "win32":
+            pytest.skip("Windows only")
+
+        from stars_web.automation.commander import ProductionEditor
+        from stars_web.automation.window import StarsWindow
+
+        win = StarsWindow(hwnd=1)
+        pe = ProductionEditor(win, settle_delay=0)
+
+        from stars_web.automation.input import Input
+
+        with (
+            mock.patch.object(win, "focus"),
+            mock.patch("stars_web.automation.commander.Input.key") as mock_key,
+            mock.patch("time.sleep"),
+        ):
+            pe.cancel()
+
+        mock_key.assert_called_once_with(Input.VK_ESCAPE)
+
+
+class TestResearchAllocator:
+    """ResearchAllocator.open() navigates to the Research screen."""
+
+    def test_open_goes_to_research_screen(self) -> None:
+        if sys.platform != "win32":
+            pytest.skip("Windows only")
+
+        from stars_web.automation.commander import ResearchAllocator
+        from stars_web.automation.navigator import StarScreen
+        from stars_web.automation.window import StarsWindow
+
+        win = StarsWindow(hwnd=1)
+        ra = ResearchAllocator(win, settle_delay=0)
+
+        with (
+            mock.patch.object(win, "focus"),
+            mock.patch.object(ra._nav, "go") as mock_go,
+            mock.patch("time.sleep"),
+        ):
+            ra.open()
+
+        mock_go.assert_called_once_with(StarScreen.RESEARCH)
+
+
+# ===========================================================================
+# GUIHostRunner
+# ===========================================================================
+
+
+class TestGUIHostRunnerPaths:
+    """GUIHostRunner resolves .m file path correctly."""
+
+    def test_m_file_path(self, tmp_path: Path) -> None:
+        from stars_web.automation.host_runner import GUIHostRunner
+        from stars_web.automation.window import StarsWindow
+
+        win = StarsWindow(hwnd=1)
+        runner = GUIHostRunner(win, game_dir=tmp_path, game_prefix="Game", player_number=3)
+
+        assert runner.m_file == tmp_path / "Game.m3"
+
+    def test_generate_turn_raises_if_m_missing(self, tmp_path: Path) -> None:
+        from stars_web.automation.host_runner import GUIHostRunner
+        from stars_web.automation.window import StarsWindow
+
+        win = StarsWindow(hwnd=1)
+        runner = GUIHostRunner(win, game_dir=tmp_path, game_prefix="Game")
+
+        with pytest.raises(FileNotFoundError):
+            runner.generate_turn(timeout=1)
+
+    def test_generate_turn_detects_mtime_change(self, tmp_path: Path) -> None:
+        if sys.platform != "win32":
+            pytest.skip("Windows only")
+
+        import threading
+
+        from stars_web.automation.host_runner import GUIHostRunner
+        from stars_web.automation.window import StarsWindow
+
+        win = StarsWindow(hwnd=1)
+        m = tmp_path / "Game.m1"
+        m.write_bytes(b"old turn data")
+
+        runner = GUIHostRunner(win, game_dir=tmp_path, game_prefix="Game")
+
+        def write_new_m():
+            # Wait briefly, then update the file so mtime changes
+            import time as _t
+
+            _t.sleep(0.15)
+            m.write_bytes(b"new turn data")
+
+        t = threading.Thread(target=write_new_m, daemon=True)
+
+        with (
+            mock.patch.object(win, "focus"),
+            mock.patch.object(runner, "open_file_menu"),
+            mock.patch.object(runner, "navigate_to_generate_turn"),
+        ):
+            t.start()
+            result = runner.generate_turn(timeout=5)
+            t.join(timeout=2)
+
+        assert result == m
+
+    def test_generate_turn_timeout(self, tmp_path: Path) -> None:
+        if sys.platform != "win32":
+            pytest.skip("Windows only")
+
+        from stars_web.automation.host_runner import GUIHostRunner
+        from stars_web.automation.window import StarsWindow
+
+        win = StarsWindow(hwnd=1)
+        m = tmp_path / "Game.m1"
+        m.write_bytes(b"old")
+
+        runner = GUIHostRunner(win, game_dir=tmp_path, game_prefix="Game")
+
+        with (
+            mock.patch.object(win, "focus"),
+            mock.patch.object(runner, "open_file_menu"),
+            mock.patch.object(runner, "navigate_to_generate_turn"),
+            mock.patch("stars_web.automation.host_runner._POLL_INTERVAL", 0),
+        ):
+            with pytest.raises(TimeoutError):
+                runner.generate_turn(timeout=0.05)
