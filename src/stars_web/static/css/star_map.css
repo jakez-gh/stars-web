@@ -199,6 +199,69 @@ body {
 .conc-bar-fill.bor  { background: #227722; }
 .conc-bar-fill.germ { background: #997700; }
 
+/* --- Waypoint add form --- */
+
+.wp-form {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-top: 4px;
+}
+
+.wp-form select,
+.wp-form input[type="number"] {
+    background: #1a1a2e;
+    border: 1px solid #334;
+    color: #ccc;
+    padding: 3px 5px;
+    border-radius: 3px;
+    font-size: 12px;
+    font-family: inherit;
+}
+
+.wp-form select { width: 100%; }
+
+.wp-coords {
+    display: flex;
+    gap: 6px;
+}
+
+.wp-coords label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: #888;
+    font-size: 11px;
+    flex: 1;
+}
+
+.wp-coords input[type="number"] { width: 100%; }
+
+.wp-warp-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #888;
+    font-size: 11px;
+}
+
+.wp-warp-label select { width: auto; }
+
+.wp-add-btn {
+    background: #1a3a5c;
+    border: 1px solid #2255aa;
+    color: #aaceff;
+    padding: 4px 10px;
+    border-radius: 3px;
+    cursor: not-allowed;
+    font-size: 12px;
+    align-self: flex-start;
+    font-family: inherit;
+    opacity: 0.7;
+}
+
+.wp-add-btn:hover { background: #1f4a7a; }
+
 /* --- Tooltip --- */
 
 #tooltip {

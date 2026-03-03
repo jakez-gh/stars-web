@@ -41,6 +41,12 @@
     let viewY = 0;
     let zoom = 1.0;
 
+    // Expose state for E2E tests
+    Object.defineProperty(window, "_gameState", { get: () => gameState, configurable: true });
+    Object.defineProperty(window, "_viewX",     { get: () => viewX,     configurable: true });
+    Object.defineProperty(window, "_viewY",     { get: () => viewY,     configurable: true });
+    Object.defineProperty(window, "_zoom",      { get: () => zoom,      configurable: true });
+
     // Pan state
     let isPanning = false;
     let panStartX = 0;
@@ -344,6 +350,13 @@
         render();
     }
 
+    function hideDetail() {
+        selectedPlanet = null;
+        selectedFleet = null;
+        detailPanel.classList.add("hidden");
+        render();
+    }
+
     function mineralBar(label, cssClass, value, maxVal) {
         const pct = Math.min(100, (value / maxVal) * 100);
         const baseClass = cssClass.split(" ")[0];
@@ -375,15 +388,53 @@
             });
         }
 
-        detailBody.innerHTML = html;
-        detailPanel.classList.remove("hidden");
-        render();
-    }
+        html += `<div class="section-title">Add Waypoint</div>`;
+        html += `<div class="wp-form">`;
+        html += `<select id="wp-dest"><option value="">— Deep Space —</option></select>`;
+        html += `<div class="wp-coords">`;
+        html += `<label>X <input type="number" id="wp-x" placeholder="0"></label>`;
+        html += `<label>Y <input type="number" id="wp-y" placeholder="0"></label>`;
+        html += `</div>`;
+        html += `<label class="wp-warp-label">Warp <select id="wp-warp">${[1,2,3,4,5,6,7,8,9].map(w => `<option value="${w}"${w === 5 ? " selected" : ""}>${w}</option>`).join("")}</select></label>`;
+        html += `<button id="wp-add-btn" class="wp-add-btn">Add Waypoint</button>`;
+        html += `</div>`;
 
-    function hideDetail() {
-        selectedPlanet = null;
-        selectedFleet = null;
-        detailPanel.classList.add("hidden");
+        detailBody.innerHTML = html;
+
+        // Populate planet dropdown
+        const dest = document.getElementById("wp-dest");
+        const xIn  = document.getElementById("wp-x");
+        const yIn  = document.getElementById("wp-y");
+
+        gameState.planets
+            .filter(p => p.owner >= 0)
+            .sort((a, b) => a.name.localeCompare(b.name))
+            .forEach(p => {
+                const opt = document.createElement("option");
+                opt.value = String(p.id);
+                opt.textContent = p.name;
+                opt.dataset.x = p.x;
+                opt.dataset.y = p.y;
+                dest.appendChild(opt);
+            });
+
+        dest.addEventListener("change", () => {
+            const opt = dest.selectedOptions[0];
+            if (opt && opt.dataset.x) {
+                xIn.value = opt.dataset.x;
+                yIn.value = opt.dataset.y;
+            } else {
+                xIn.value = "";
+                yIn.value = "";
+            }
+        });
+
+        // Add button — not wired yet; see issue #35/#36
+        document.getElementById("wp-add-btn").addEventListener("click", () => {
+            // TODO: POST to /api/fleet/{id}/waypoints
+        });
+
+        detailPanel.classList.remove("hidden");
         render();
     }
 

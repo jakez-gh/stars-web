@@ -1,9 +1,10 @@
 {
-  "id": "2026-03-02-005",
-  "title": "Planet production queue",
+  "id": "2026-03-02-006",
+  "title": "Add Waypoint form in fleet panel",
   "items": [
-    "Clicking an owned planet now shows its production queue below the environment section",
-    "Queue items display as: '1. 10\u00d7 Factory (75%)' with partial-completion percentage",
-    "Owned planets with an empty queue show 'Queue is empty'"
+    "Fleet panel now shows an 'Add Waypoint' section with a planet dropdown",
+    "Selecting a planet auto-fills the X/Y coordinate fields",
+    "Warp speed selector (1\u20139, default 5) and 'Add Waypoint' button visible",
+    "Button is present but orders are not yet submitted (issue #35 next)"
   ]
 }

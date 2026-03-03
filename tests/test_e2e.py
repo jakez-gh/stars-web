@@ -140,3 +140,68 @@ class TestChangelogModal:
         page.reload()
         page.wait_for_timeout(2000)
         assert not page.is_visible("#changelog-modal")
+
+
+# ---------------------------------------------------------------------------
+# Waypoint add form
+# ---------------------------------------------------------------------------
+class TestWaypointForm:
+    """Fleet detail panel must include an Add Waypoint form (issue #34).
+
+    These tests require a fleet visible in the game; they interact with the
+    canvas directly via pixel coordinates derived from the API.
+    """
+
+    def _get_fleet_screen_pos(self, page):
+        """Return pixel coords of the first fleet on screen after the game loads."""
+        page.wait_for_function(
+            "window._gameState && window._gameState.fleets.length > 0",
+            timeout=5000,
+        )
+        return page.evaluate(
+            """() => {
+            const gs = window._gameState;
+            const canvas = document.getElementById('star-map');
+            const fleet = gs.fleets[0];
+            const viewX = window._viewX ?? 0;
+            const viewY = window._viewY ?? 0;
+            const zoom  = window._zoom ?? 1;
+            const sx = (fleet.x - viewX) * zoom + canvas.width  / 2;
+            const sy = (fleet.y - viewY) * zoom + canvas.height / 2;
+            return { x: sx, y: sy };
+        }"""
+        )
+
+    def test_fleet_panel_has_add_waypoint_section(self, page):
+        """Clicking a fleet must reveal an 'Add Waypoint' section in the panel."""
+        page.goto(BASE_URL)
+        pos = self._get_fleet_screen_pos(page)
+        page.click("#star-map", position={"x": pos["x"], "y": pos["y"]})
+        page.wait_for_selector("#detail-panel:not(.hidden)", timeout=3000)
+        assert page.query_selector("#wp-dest") is not None, "#wp-dest select missing"
+
+    def test_waypoint_form_has_warp_selector(self, page):
+        """Warp speed selector must be present in the add-waypoint form."""
+        page.goto(BASE_URL)
+        pos = self._get_fleet_screen_pos(page)
+        page.click("#star-map", position={"x": pos["x"], "y": pos["y"]})
+        page.wait_for_selector("#detail-panel:not(.hidden)", timeout=3000)
+        assert page.query_selector("#wp-warp") is not None, "#wp-warp select missing"
+
+    def test_waypoint_form_has_add_button(self, page):
+        """'Add Waypoint' button must be present and labelled."""
+        page.goto(BASE_URL)
+        pos = self._get_fleet_screen_pos(page)
+        page.click("#star-map", position={"x": pos["x"], "y": pos["y"]})
+        page.wait_for_selector("#detail-panel:not(.hidden)", timeout=3000)
+        btn = page.query_selector("#wp-add-btn")
+        assert btn is not None, "#wp-add-btn button missing"
+
+    def test_planet_dropdown_populated(self, page):
+        """Planet dropdown must have at least one <option> beyond the default."""
+        page.goto(BASE_URL)
+        pos = self._get_fleet_screen_pos(page)
+        page.click("#star-map", position={"x": pos["x"], "y": pos["y"]})
+        page.wait_for_selector("#detail-panel:not(.hidden)", timeout=3000)
+        count = page.evaluate("() => document.getElementById('wp-dest').options.length")
+        assert count > 1, f"Expected >1 options in #wp-dest, got {count}"
