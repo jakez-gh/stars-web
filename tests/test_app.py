@@ -1,6 +1,8 @@
 """Tests for the Flask web application."""
 
 import os
+import shutil
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -418,3 +420,132 @@ class TestSubmitTurnButton:
             )
             data = client.get("/api/game-state").get_json()
             assert data["has_pending_orders"] is True
+
+
+# ---------------------------------------------------------------------------
+# TestSubmitTurnAPI (issue #50)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture()
+def game_dir_with_x1(tmp_path):
+    """Temp game directory with Game.xy, Game.m1, Game.x1, and otvdm/otvdm.exe."""
+    _skip_if_no_data()
+
+    # Copy real game files
+    for name in ("Game.xy", "Game.m1"):
+        shutil.copy(os.path.join(TEST_DATA_DIR, name), tmp_path / name)
+
+    # Build a minimal .x1 from the .m1 header bytes
+    from stars_web.block_reader import read_blocks
+    from stars_web.order_serializer import build_order_file
+
+    with open(tmp_path / "Game.m1", "rb") as f:
+        m_bytes = f.read()
+    m_blocks = read_blocks(m_bytes)
+    x1_raw = build_order_file(m_blocks[0].data)
+    with open(tmp_path / "Game.x1", "wb") as f:
+        f.write(x1_raw)
+
+    # Create dummy otvdm.exe + stars.exe (paths only; subprocess is mocked)
+    (tmp_path / "otvdm").mkdir()
+    (tmp_path / "otvdm" / "otvdm.exe").write_bytes(b"")
+    (tmp_path / "stars").mkdir()
+    (tmp_path / "stars" / "stars.exe").write_bytes(b"")
+
+    return str(tmp_path)
+
+
+class TestSubmitTurnAPI:
+    """Tests for POST /game/submit-turn (issue #50)."""
+
+    def test_route_exists(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        rules = [r.rule for r in app.url_map.iter_rules()]
+        assert "/game/submit-turn" in rules
+
+    def test_success_path_returns_ok(self, game_dir_with_x1):
+        """Mocked host returns 0: response is status=ok and pending orders are cleared."""
+        app = create_app(game_dir=game_dir_with_x1)
+        mock_result = MagicMock(returncode=0, stdout="done\n", stderr="")
+
+        with app.test_client() as client:
+            # Plant a pending waypoint
+            client.post(
+                "/api/fleet/1/waypoints",
+                json={"waypoints": [{"x": 100, "y": 200, "warp": 5}]},
+            )
+            assert app.config["PENDING_WAYPOINTS"]
+
+            with patch("subprocess.run", return_value=mock_result):
+                resp = client.post("/game/submit-turn")
+
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["status"] == "ok"
+        assert "turn" in data
+        # Pending orders must be cleared after successful submission
+        assert not app.config["PENDING_WAYPOINTS"]
+        assert not app.config["PENDING_PRODUCTION"]
+
+    def test_failure_path_returns_error(self, game_dir_with_x1):
+        """Mocked host returns non-zero: response is status=error, pending NOT cleared."""
+        app = create_app(game_dir=game_dir_with_x1)
+        mock_result = MagicMock(returncode=1, stdout="", stderr="host error")
+
+        with app.test_client() as client:
+            client.post(
+                "/api/fleet/1/waypoints",
+                json={"waypoints": [{"x": 100, "y": 200, "warp": 5}]},
+            )
+
+            with patch("subprocess.run", return_value=mock_result):
+                resp = client.post("/game/submit-turn")
+
+        assert resp.status_code == 500
+        data = resp.get_json()
+        assert data["status"] == "error"
+        # Pending orders should be preserved on failure
+        assert app.config["PENDING_WAYPOINTS"]
+
+    def test_no_x1_file_returns_error(self, tmp_path):
+        """Missing .x1 file → 500 with descriptive error."""
+        _skip_if_no_data()
+        for name in ("Game.xy", "Game.m1"):
+            shutil.copy(os.path.join(TEST_DATA_DIR, name), tmp_path / name)
+        # Deliberately do NOT create Game.x1
+        app = create_app(game_dir=str(tmp_path))
+        with app.test_client() as client:
+            resp = client.post("/game/submit-turn")
+        assert resp.status_code == 500
+        assert resp.get_json()["status"] == "error"
+
+    def test_no_otvdm_returns_error(self, game_dir_with_x1):
+        """Missing otvdm.exe → 500 with descriptive error."""
+        os.remove(os.path.join(game_dir_with_x1, "otvdm", "otvdm.exe"))
+        app = create_app(game_dir=game_dir_with_x1)
+        with app.test_client() as client:
+            resp = client.post("/game/submit-turn")
+        assert resp.status_code == 500
+        data = resp.get_json()
+        assert data["status"] == "error"
+        assert "otvdm" in data["log"].lower() or "not found" in data["log"].lower()
+
+    def test_production_orders_submitted(self, game_dir_with_x1):
+        """Production orders are serialized and pending is cleared on success."""
+        app = create_app(game_dir=game_dir_with_x1)
+        mock_result = MagicMock(returncode=0, stdout="", stderr="")
+
+        with app.test_client() as client:
+            client.post(
+                "/api/planet/1/production",
+                json=[{"name": "Mine", "quantity": 5}],
+            )
+            assert app.config["PENDING_PRODUCTION"]
+
+            with patch("subprocess.run", return_value=mock_result):
+                resp = client.post("/game/submit-turn")
+
+        assert resp.status_code == 200
+        assert not app.config["PENDING_PRODUCTION"]

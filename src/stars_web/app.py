@@ -210,4 +210,172 @@ def create_app(game_dir: str | None = None) -> Flask:
         app.config["PENDING_PRODUCTION"][planet_id] = stored
         return jsonify(stored)
 
+    @app.route("/game/submit-turn", methods=["POST"])
+    def api_submit_turn():
+        """Write pending orders to .x1 and invoke the Stars! host binary.
+
+        Returns JSON: {"status": "ok"|"error", "log": "...", "turn": N}
+        """
+        import subprocess
+
+        from stars_web.block_reader import read_blocks
+        from stars_web.game_state import WAYPOINT_TASKS
+        from stars_web.order_serializer import (
+            OBJ_TYPE_DEEP_SPACE,
+            ProductionItem,
+            ProductionQueueOrder,
+            WaypointOrder,
+            build_order_file,
+        )
+
+        game_dir = app.config["GAME_DIR"]
+        pending_wp = app.config["PENDING_WAYPOINTS"]
+        pending_prod = app.config["PENDING_PRODUCTION"]
+
+        # ── Detect game prefix + player number ──────────────────────────────
+        xy_files = [f for f in os.listdir(game_dir) if f.lower().endswith(".xy")]
+        if not xy_files:
+            return (
+                jsonify(
+                    {"status": "error", "log": "No .xy file found in game directory", "turn": None}
+                ),
+                500,
+            )
+        game_prefix = xy_files[0].rsplit(".", 1)[0]
+
+        m_files = sorted(
+            f
+            for f in os.listdir(game_dir)
+            if f.lower().startswith(game_prefix.lower() + ".m") and f[-1].isdigit()
+        )
+        if not m_files:
+            return (
+                jsonify(
+                    {"status": "error", "log": "No .m# file found in game directory", "turn": None}
+                ),
+                500,
+            )
+        player_num = int(m_files[0].rsplit(".m", 1)[1])
+
+        # ── Read source .x1 header ───────────────────────────────────────────
+        x1_path = os.path.join(game_dir, f"{game_prefix}.x{player_num}")
+        if not os.path.exists(x1_path):
+            return (
+                jsonify(
+                    {
+                        "status": "error",
+                        "log": f"{game_prefix}.x{player_num} not found in game directory",
+                        "turn": None,
+                    }
+                ),
+                500,
+            )
+
+        with open(x1_path, "rb") as f:
+            source_x1 = f.read()
+
+        blocks = read_blocks(source_x1)
+        if not blocks or blocks[0].file_header is None:
+            return (
+                jsonify(
+                    {"status": "error", "log": "Could not parse .x1 file header", "turn": None}
+                ),
+                500,
+            )
+
+        header_bytes = blocks[0].data
+        turn = blocks[0].file_header.turn
+
+        # ── Task name → int reverse mapping ─────────────────────────────────
+        task_name_to_id = {v: k for k, v in WAYPOINT_TASKS.items()}
+
+        # ── Build order objects ──────────────────────────────────────────────
+        waypoint_orders: list[WaypointOrder] = []
+        for fleet_id, wps in pending_wp.items():
+            for wp in wps:
+                raw_task = wp.get("task", 0)
+                task_int = (
+                    task_name_to_id.get(raw_task, 0) if isinstance(raw_task, str) else int(raw_task)
+                )
+                waypoint_orders.append(
+                    WaypointOrder(
+                        fleet_id=fleet_id,
+                        x=int(wp["x"]),
+                        y=int(wp["y"]),
+                        warp=int(wp.get("warp", 5)),
+                        task=task_int,
+                        obj_type=OBJ_TYPE_DEEP_SPACE,
+                    )
+                )
+
+        production_orders: list[ProductionQueueOrder] = []
+        for planet_id, items in pending_prod.items():
+            try:
+                prod_items = [
+                    ProductionItem.from_name(it["name"], int(it["quantity"])) for it in items
+                ]
+            except ValueError as exc:
+                return jsonify({"status": "error", "log": str(exc), "turn": turn}), 400
+            production_orders.append(ProductionQueueOrder(planet_id=planet_id, items=prod_items))
+
+        # ── Serialize to .x1 ────────────────────────────────────────────────
+        new_x1 = build_order_file(
+            header_bytes,
+            waypoint_orders=waypoint_orders,
+            production_orders=production_orders,
+        )
+        with open(x1_path, "wb") as f:
+            f.write(new_x1)
+
+        # ── Invoke host ──────────────────────────────────────────────────────
+        otvdm_path = os.path.join(game_dir, "otvdm", "otvdm.exe")
+        stars_path = os.path.join(game_dir, "stars", "stars.exe")
+
+        if not os.path.exists(otvdm_path):
+            return (
+                jsonify(
+                    {
+                        "status": "error",
+                        "log": f"Host launcher not found: {otvdm_path}",
+                        "turn": turn,
+                    }
+                ),
+                500,
+            )
+
+        try:
+            result = subprocess.run(
+                [otvdm_path, stars_path],
+                cwd=game_dir,
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+        except subprocess.TimeoutExpired:
+            return (
+                jsonify(
+                    {"status": "error", "log": "Host process timed out after 60 s", "turn": turn}
+                ),
+                500,
+            )
+        except OSError as exc:
+            return jsonify({"status": "error", "log": str(exc), "turn": turn}), 500
+
+        log = (result.stdout or "") + (result.stderr or "")
+        if result.returncode == 0:
+            app.config["PENDING_WAYPOINTS"].clear()
+            app.config["PENDING_PRODUCTION"].clear()
+            return jsonify({"status": "ok", "log": log, "turn": turn})
+
+        return (
+            jsonify(
+                {
+                    "status": "error",
+                    "log": log or f"Host exited with code {result.returncode}",
+                    "turn": turn,
+                }
+            ),
+            500,
+        )
+
     return app
