@@ -70,6 +70,23 @@ BLOCK_TYPE_DESIGN = 26
 # Block type constant for production queues
 BLOCK_TYPE_PRODUCTION_QUEUE = 28
 
+# Block type constant for waypoints
+BLOCK_TYPE_WAYPOINT = 20
+
+# Waypoint task names by ID
+WAYPOINT_TASKS = {
+    0: "None",
+    1: "Transport",
+    2: "Colonize",
+    3: "Remote Mining",
+    4: "Merge with Fleet",
+    5: "Scrap Fleet",
+    6: "Lay Mine Field",
+    7: "Patrol",
+    8: "Route",
+    9: "Transfer",
+}
+
 # Standard production queue item names by ID (itemType == 2)
 QUEUE_ITEM_NAMES = {
     0: "Auto Mines",
@@ -121,6 +138,23 @@ class Planet:
 
 
 @dataclass
+class Waypoint:
+    """A fleet waypoint.
+
+    position_object_type: 17=planet, 20=deep space
+    task: 0=None, 1=Transport, 2=Colonize, etc.
+    """
+
+    x: int
+    y: int
+    position_object: int
+    warp: int
+    task: int
+    task_name: str
+    position_object_type: int
+
+
+@dataclass
 class Fleet:
     """A fleet on the star map."""
 
@@ -129,6 +163,7 @@ class Fleet:
     x: int
     y: int
     ship_count: int = 0
+    waypoints: list[Waypoint] = field(default_factory=list)
     # Minimal for now — expand as we parse more fields
 
 
@@ -333,6 +368,40 @@ def parse_production_queue_block(
         )
 
     return items
+
+
+def parse_waypoint_block(block: Block) -> Waypoint | None:
+    """Parse a type-20 waypoint block.
+
+    Waypoint format (from starsapi WaypointBlock.java):
+      bytes 0-1: x (u16 LE)
+      bytes 2-3: y (u16 LE)
+      bytes 4-5: positionObject (u16 LE) — target planet/fleet ID
+      byte 6: warp (top 4 bits), task (bottom 4 bits)
+      byte 7: positionObjectType (17=planet, 20=deep space)
+      bytes 8+: additional task-specific data
+    """
+    if block.type_id != BLOCK_TYPE_WAYPOINT:
+        return None
+
+    data = block.data
+    x = struct.unpack_from("<H", data, 0)[0]
+    y = struct.unpack_from("<H", data, 2)[0]
+    position_object = struct.unpack_from("<H", data, 4)[0]
+    warp = (data[6] >> 4) & 0x0F
+    task = data[6] & 0x0F
+    position_object_type = data[7]
+    task_name = WAYPOINT_TASKS.get(task, f"Unknown Task {task}")
+
+    return Waypoint(
+        x=x,
+        y=y,
+        position_object=position_object,
+        warp=warp,
+        task=task,
+        task_name=task_name,
+        position_object_type=position_object_type,
+    )
 
 
 def _parse_planets_from_xy(blocks: list[Block]) -> tuple[list[Planet], GameSettings]:
@@ -621,6 +690,16 @@ def load_game(game_dir: str, player: int = 0) -> GameState:
         state.turn = m_hdr.turn
         state.year = m_hdr.year
 
+        # First pass: collect all parsed waypoints in order
+        all_waypoints: list[Waypoint] = []
+        for block in m_blocks:
+            if block.type_id == BLOCK_TYPE_WAYPOINT:
+                wp = parse_waypoint_block(block)
+                if wp is not None:
+                    all_waypoints.append(wp)
+
+        # Second pass: parse entities, assign waypoints to fleets
+        wp_index = 0
         last_planet_id = None
         for block in m_blocks:
             if block.type_id in (13, 14):
@@ -629,6 +708,14 @@ def load_game(game_dir: str, player: int = 0) -> GameState:
             elif block.type_id in (16, 17):
                 fleet = _parse_fleet_block(block)
                 if fleet is not None:
+                    # Full fleets (kind=7) have waypointCount as last byte
+                    kind = block.data[4]
+                    if kind == 7:
+                        wp_count = block.data[-1]
+                        for _ in range(wp_count):
+                            if wp_index < len(all_waypoints):
+                                fleet.waypoints.append(all_waypoints[wp_index])
+                                wp_index += 1
                     state.fleets.append(fleet)
             elif block.type_id == BLOCK_TYPE_DESIGN:
                 design = parse_design_block(block)
