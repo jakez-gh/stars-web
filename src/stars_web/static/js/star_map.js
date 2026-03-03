@@ -67,6 +67,7 @@
     const showNamesCheck = document.getElementById("show-names");
     const showFleetsCheck = document.getElementById("show-fleets");
     const showUnownedCheck = document.getElementById("show-unowned");
+    const submitTurnBtn = document.getElementById("submit-turn-btn");
 
     // Tooltip element
     const tooltip = document.createElement("div");
@@ -734,6 +735,7 @@
 
             gameTitle.textContent = gameState.settings.game_name || "Stars!";
             gameInfo.textContent = `Year ${gameState.year} | ${gameState.settings.universe_size} | ${gameState.planets.length} planets | ${gameState.fleets.length} fleets`;
+            submitTurnBtn.disabled = !gameState.has_pending_orders;
 
             resize();
             centerOnPlanets();

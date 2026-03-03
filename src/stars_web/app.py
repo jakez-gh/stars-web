@@ -148,6 +148,7 @@ def create_app(game_dir: str | None = None) -> Flask:
                 "turn": state.turn,
                 "version": state.version,
                 "player_index": state.player_index,
+                "has_pending_orders": bool(pending_wp) or bool(pending_prod),
                 "settings": {
                     "game_name": state.settings.game_name,
                     "universe_size": state.settings.universe_size_label,

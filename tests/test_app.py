@@ -382,3 +382,39 @@ class TestProductionOrdersAPI:
             resp = client.post("/api/planet/1/production", json=[])
             assert resp.status_code == 200
             assert resp.get_json() == []
+
+
+class TestSubmitTurnButton:
+    """Unit tests for the has_pending_orders flag in /api/game-state (issue #49)."""
+
+    def test_has_pending_orders_false_with_no_pending(self):
+        """has_pending_orders is False when no waypoints or production orders exist."""
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            data = client.get("/api/game-state").get_json()
+            assert data["has_pending_orders"] is False
+
+    def test_has_pending_orders_true_after_waypoint_post(self):
+        """has_pending_orders becomes True after a waypoint order is POSTed."""
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            client.post(
+                "/api/fleet/1/waypoints",
+                json={"waypoints": [{"x": 100, "y": 200, "warp": 5}]},
+            )
+            data = client.get("/api/game-state").get_json()
+            assert data["has_pending_orders"] is True
+
+    def test_has_pending_orders_true_after_production_post(self):
+        """has_pending_orders becomes True after a production order is POSTed."""
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            client.post(
+                "/api/planet/1/production",
+                json=[{"name": "Mine", "quantity": 3}],
+            )
+            data = client.get("/api/game-state").get_json()
+            assert data["has_pending_orders"] is True
