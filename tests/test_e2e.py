@@ -446,3 +446,39 @@ class TestSubmitTurn:
             "document.getElementById('host-log-panel').classList.contains('hidden')",
             timeout=3000,
         )
+
+
+class TestTurnBanner:
+    """Tests for the 'Turn N loaded' banner and turn-number header (#53)."""
+
+    def test_game_info_shows_turn_number(self, page):
+        """The #game-info span in the toolbar always shows the turn number."""
+        page.goto(BASE_URL)
+        page.wait_for_function("window._gameState !== undefined", timeout=5000)
+        game_info = page.text_content("#game-info")
+        assert "Turn" in game_info, f"Expected 'Turn' in game-info, got: {game_info!r}"
+
+    def test_game_info_turn_is_numeric(self, page):
+        """The turn number shown in #game-info is numeric."""
+        import re
+
+        page.goto(BASE_URL)
+        page.wait_for_function("window._gameState !== undefined", timeout=5000)
+        game_info = page.text_content("#game-info")
+        match = re.search(r"Turn (\d+)", game_info)
+        assert match is not None, f"No 'Turn <number>' in: {game_info!r}"
+        assert int(match.group(1)) >= 1
+
+    def test_turn_banner_on_reload(self, page):
+        """Simulating a turn change shows the 'Turn N loaded' toast."""
+        page.goto(BASE_URL)
+        page.wait_for_function("window._gameState !== undefined", timeout=5000)
+
+        # Artificially bump prevTurn to a lower number to trigger the banner
+        # on the next loadGameState call.
+        page.evaluate("() => { window._prevTurn = window._gameState.turn - 1; }")
+        page.evaluate("() => window._loadGameState && window._loadGameState()")
+        page.wait_for_selector("#toast.visible", timeout=5000)
+        toast_text = page.text_content("#toast")
+        assert "Turn" in toast_text
+        assert "loaded" in toast_text

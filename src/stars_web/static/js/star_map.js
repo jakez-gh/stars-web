@@ -31,6 +31,7 @@
 
     // --- State ---
     let gameState = null;
+    let prevTurn = null;  // track turn changes for "Turn N loaded" banner
     let selectedPlanet = null;
     let hoveredPlanet = null;
     let selectedFleet = null;
@@ -45,7 +46,8 @@
     Object.defineProperty(window, "_gameState", { get: () => gameState, configurable: true });
     Object.defineProperty(window, "_viewX",     { get: () => viewX,     configurable: true });
     Object.defineProperty(window, "_viewY",     { get: () => viewY,     configurable: true });
-    Object.defineProperty(window, "_zoom",      { get: () => zoom,      configurable: true });    // Pan state
+    Object.defineProperty(window, "_zoom",      { get: () => zoom,      configurable: true });
+    Object.defineProperty(window, "_prevTurn",  { get: () => prevTurn, set: (v) => { prevTurn = v; }, configurable: true });    // Pan state
     let isPanning = false;
     let panStartX = 0;
     let panStartY = 0;
@@ -767,8 +769,13 @@
             }
 
             gameTitle.textContent = gameState.settings.game_name || "Stars!";
-            gameInfo.textContent = `Year ${gameState.year} | ${gameState.settings.universe_size} | ${gameState.planets.length} planets | ${gameState.fleets.length} fleets`;
+            gameInfo.textContent = `Year ${gameState.year} \u2022 Turn ${gameState.turn} | ${gameState.settings.universe_size} | ${gameState.planets.length} planets | ${gameState.fleets.length} fleets`;
             submitTurnBtn.disabled = !gameState.has_pending_orders;
+
+            if (prevTurn !== null && gameState.turn !== prevTurn) {
+                showToast(`Turn ${gameState.turn} loaded successfully`);
+            }
+            prevTurn = gameState.turn;
 
             resize();
             centerOnPlanets();
