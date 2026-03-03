@@ -15,8 +15,9 @@ from the autoplay repo (`../autoplay/tests/data/Game.*`).
 | test_integration.py | End-to-end: read real files, verify planet names/positions/counts | 29 |
 | test_game_state.py | Game settings, planet state (Blossom), fleets, load_game API | 39 |
 | test_app.py | Flask app factory, API JSON, HTML page, error handling | 12 |
+| test_ship_designs.py | Stars! string decoding, ShipDesign dataclass, design block parsing, real file integration | 18 |
 
-## Total: 130 tests
+## Total: 148 tests
 
 ## Test Data
 

@@ -12,7 +12,8 @@ Core library for parsing Stars! binary file formats and assembling game state.
 | file_header.py | Parses the 16-byte file header (type 8 block): magic, game_id, turn, salt, player |
 | block_reader.py | Reads a Stars! file into a list of typed/decrypted Block objects |
 | planet_names.py | 999-entry lookup table mapping name_id → planet name string |
-| game_state.py | High-level loader: assembles GameState from .xy/.m#/.hst files. Parses planet blocks (type 13/14), fleet blocks (type 16/17), game settings (type 7) |
+| stars_string.py | Decodes Stars! custom nibble-based text encoding used in design names |
+| game_state.py | High-level loader: assembles GameState from .xy/.m#/.hst files. Parses planet blocks (type 13/14), fleet blocks (type 16/17), design blocks (type 26), game settings (type 7) |
 
 ## Data Flow
 
@@ -23,7 +24,7 @@ Game.xy / Game.m1 / Game.hst  (raw bytes)
       → decryptor.Decryptor     (seeds from header, XOR decrypt)
       → list[Block]             (typed, decrypted)
   → game_state.load_game()
-      → GameState (planets, fleets, settings)
+      → GameState (planets, fleets, designs, settings)
 ```
 
 ## Dependencies
