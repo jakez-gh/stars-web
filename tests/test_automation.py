@@ -909,3 +909,197 @@ class TestGUIHostRunnerPaths:
         ):
             with pytest.raises(TimeoutError):
                 runner.generate_turn(timeout=0.05)
+
+
+# ===========================================================================
+# AutonomousHarness / DecisionEngine (MA3 Milestone)
+# ===========================================================================
+
+
+class TestAutonomousHarness:
+    """Tests for the autonomous turn harness (harness.py).
+
+    These are end-to-end tests that exercise the full cycle:
+    load_game_state → decide → build_orders → write .x1 file.
+    """
+
+    @_SKIP_NO_GAME
+    def test_load_game_state(self) -> None:
+        """AutonomousHarness.load_game_state() loads a real game file."""
+        from stars_web.automation.harness import AutonomousHarness
+
+        harness = AutonomousHarness(
+            game_dir=_GAME_DIR,
+            game_prefix="Game-big",
+            player_number=1,
+        )
+
+        # Should not raise; should return a valid GameState
+        game_state = harness.load_game_state()
+
+        assert game_state is not None
+        assert game_state.planets is not None
+        assert len(game_state.planets) > 0
+        assert game_state.fleets is not None
+        assert game_state.settings is not None
+        assert game_state.turn >= 0
+
+    @_SKIP_NO_GAME
+    def test_decision_engine_chooses_production(self) -> None:
+        """DecisionEngine.decide() generates valid production decisions."""
+        from stars_web.automation.harness import AutonomousHarness
+
+        harness = AutonomousHarness(
+            game_dir=_GAME_DIR,
+            game_prefix="Game-big",
+            player_number=1,
+        )
+
+        game_state = harness.load_game_state()
+        decisions = harness.engine.decide(game_state)
+
+        # Should generate at least one production decision for planets
+        assert decisions is not None
+        assert isinstance(decisions.production, list)
+        assert isinstance(decisions.waypoints, list)
+
+    @_SKIP_NO_GAME
+    def test_build_orders_from_decisions(self) -> None:
+        """build_orders() generates valid .x1 file bytes from decisions."""
+        from stars_web.automation.harness import AutonomousHarness, build_orders
+
+        harness = AutonomousHarness(
+            game_dir=_GAME_DIR,
+            game_prefix="Game-big",
+            player_number=1,
+        )
+
+        game_state = harness.load_game_state()
+        decisions = harness.engine.decide(game_state)
+
+        # Read the file header from existing .x1 or .m1
+        from stars_web.block_reader import read_blocks
+
+        x1_path = harness.x1_file
+        if x1_path.exists():
+            with open(x1_path, "rb") as f:
+                file_bytes = f.read()
+        else:
+            with open(harness.m_file, "rb") as f:
+                file_bytes = f.read()
+
+        # Extract the 16-byte header from the FILE_HEADER block
+        blocks = read_blocks(file_bytes)
+        if not blocks or blocks[0].file_header is None:
+            raise ValueError("Could not extract file header from game file")
+
+        header_bytes = blocks[0].data
+
+        # build_orders should produce non-empty bytes
+        x1_bytes = build_orders(decisions, header_bytes)
+
+        assert x1_bytes is not None
+        assert len(x1_bytes) > 0
+        assert isinstance(x1_bytes, bytes)
+
+    @_SKIP_NO_GAME
+    def test_play_turn_writes_x1_file(self, tmp_path: Path) -> None:
+        """AutonomousHarness.play_turn() writes a .x1 file."""
+        from stars_web.automation.harness import AutonomousHarness
+
+        # Copy test game files to temp directory
+        import shutil
+
+        game_dir = tmp_path / "game_copy"
+        shutil.copytree(_GAME_DIR, game_dir)
+
+        harness = AutonomousHarness(
+            game_dir=game_dir,
+            game_prefix="Game-big",
+            player_number=1,
+        )
+
+        # Play one turn
+        decisions = harness.play_turn()
+
+        # After playing turn, .x1 must exist
+        assert harness.x1_file.exists()
+
+        # Verify .x1 has reasonable size (at least file header)
+        assert harness.x1_file.stat().st_size > 0
+
+        # Decisions object should be valid
+        assert decisions is not None
+        assert isinstance(decisions.production, list)
+        assert isinstance(decisions.waypoints, list)
+
+    @_SKIP_NO_GAME
+    def test_play_turn_returns_decisions(self) -> None:
+        """AutonomousHarness.play_turn() returns TurnDecisions."""
+        from stars_web.automation.harness import AutonomousHarness, TurnDecisions
+
+        harness = AutonomousHarness(
+            game_dir=_GAME_DIR,
+            game_prefix="Game-big",
+            player_number=1,
+        )
+
+        decisions = harness.play_turn()
+
+        assert isinstance(decisions, TurnDecisions)
+        assert hasattr(decisions, "production")
+        assert hasattr(decisions, "waypoints")
+
+    @_SKIP_NO_GAME
+    def test_play_turns_multiple(self) -> None:
+        """AutonomousHarness.play_turns(n) plays n autonomous turns."""
+        from stars_web.automation.harness import AutonomousHarness
+
+        harness = AutonomousHarness(
+            game_dir=_GAME_DIR,
+            game_prefix="Game-big",
+            player_number=1,
+        )
+
+        # Play 2 turns
+        all_decisions = harness.play_turns(n=2)
+
+        assert len(all_decisions) == 2
+        for i, decisions in enumerate(all_decisions):
+            assert decisions is not None
+            assert isinstance(decisions.production, list)
+            assert isinstance(decisions.waypoints, list)
+
+
+class TestDecisionEngine:
+    """Unit tests for the DecisionEngine rule logic."""
+
+    def test_decision_engine_init(self) -> None:
+        """DecisionEngine initializes with player_index."""
+        from stars_web.automation.harness import DecisionEngine
+
+        engine = DecisionEngine(player_index=0)
+        assert engine.player_index == 0
+
+    def test_build_orders_with_empty_decisions(self) -> None:
+        """build_orders() handles empty decisions gracefully with valid header."""
+        from stars_web.automation.harness import TurnDecisions, build_orders
+
+        decisions = TurnDecisions(production=[], waypoints=[])
+
+        # Create a minimal but valid 16-byte header (magic + minimal fields)
+        # This is a real header format: 4-byte magic + version/turn/player/salt/etc
+        minimal_header = (
+            b"J3J3"  # magic (4 bytes)
+            + (1).to_bytes(4, "little")  # game_id (4 bytes)
+            + (0).to_bytes(2, "little")  # version (2 bytes)
+            + (0).to_bytes(2, "little")  # turn (2 bytes)
+            + (1).to_bytes(2, "little")  # player_index + salt (2 bytes)
+            + (0).to_bytes(2, "little")  # file_type + flags (2 bytes)
+        )
+
+        # Should not raise even with empty decisions
+        x1_bytes = build_orders(decisions, minimal_header)
+
+        assert x1_bytes is not None
+        assert isinstance(x1_bytes, bytes)
