@@ -25,5 +25,17 @@ jobs:
       - name: Run pre-commit
         run: python -m pre_commit run --all-files
 
-      - name: Run tests
-        run: python -m pytest --tb=short -q
+      - name: Run unit tests
+        run: python -m pytest --tb=short -q -m "not e2e"
+
+      - name: Install Playwright browsers
+        run: playwright install chromium --with-deps
+
+      - name: Start dev server
+        run: |
+          export PYTHONPATH=src
+          python -m stars_web.run &
+          sleep 3
+
+      - name: Run E2E tests
+        run: python -m pytest --tb=short -q -m e2e

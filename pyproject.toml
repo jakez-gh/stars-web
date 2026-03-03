@@ -11,6 +11,7 @@ dependencies = [
 dev = [
     "pytest>=7.4",
     "pytest-cov>=4.1",
+    "pytest-playwright>=0.4",
     "pre-commit>=4.0",
 ]
 
@@ -19,7 +20,10 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-addopts = ["--verbose", "--tb=short"]
+addopts = ["--verbose", "--tb=short", "-m", "not e2e"]
+markers = [
+    "e2e: end-to-end browser tests (require playwright install chromium)",
+]
 
 [build-system]
 requires = ["setuptools>=68.0"]
