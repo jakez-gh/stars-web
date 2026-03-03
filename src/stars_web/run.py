@@ -7,6 +7,7 @@ If game_dir is not provided, uses STARS_GAME_DIR env var or
 falls back to ../autoplay/tests/data.
 """
 
+import os
 import subprocess
 import sys
 
@@ -57,8 +58,11 @@ def main() -> None:
     app = create_app(game_dir)
     print(f"Loading game from: {app.config['GAME_DIR']}")
     print(f"Star map at http://127.0.0.1:{_PORT}")
-    if kill_port(_PORT):
-        print(f"Killed existing process on port {_PORT}")
+    # WERKZEUG_RUN_MAIN is set to 'true' inside the watchdog child process.
+    # Only kill the port in the outer launcher process, never in the reloader.
+    if os.environ.get("WERKZEUG_RUN_MAIN") != "true":
+        if kill_port(_PORT):
+            print(f"Killed existing process on port {_PORT}")
     app.run(debug=True, port=_PORT)
 
 
