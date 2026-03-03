@@ -92,10 +92,20 @@ def create_app(game_dir: str | None = None) -> Flask:
             fleets.append(
                 {
                     "id": f.fleet_id,
+                    "name": f.name,
                     "owner": f.owner,
                     "x": f.x,
                     "y": f.y,
                     "ship_count": f.ship_count,
+                    "waypoints": [
+                        {
+                            "x": wp.x,
+                            "y": wp.y,
+                            "warp": wp.warp,
+                            "task": wp.task_name,
+                        }
+                        for wp in f.waypoints
+                    ],
                 }
             )
 

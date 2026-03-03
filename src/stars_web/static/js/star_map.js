@@ -33,6 +33,8 @@
     let gameState = null;
     let selectedPlanet = null;
     let hoveredPlanet = null;
+    let selectedFleet = null;
+    let hoveredFleet = null;
 
     // View transform
     let viewX = 0;
@@ -196,13 +198,25 @@
 
             if (sx < -20 || sx > canvas.width + 20 || sy < -20 || sy > canvas.height + 20) continue;
 
+            const isSelected = selectedFleet && selectedFleet.id === fleet.id;
+            const isHovered = hoveredFleet && hoveredFleet.id === fleet.id;
+
+            // Selection ring
+            if (isSelected) {
+                ctx.beginPath();
+                ctx.arc(sx, sy, FLEET_SIZE + 5, 0, Math.PI * 2);
+                ctx.strokeStyle = COLOR_SELECTED;
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+            }
+
             // Fleet triangle
             ctx.beginPath();
             ctx.moveTo(sx, sy - FLEET_SIZE);
             ctx.lineTo(sx - FLEET_SIZE, sy + FLEET_SIZE);
             ctx.lineTo(sx + FLEET_SIZE, sy + FLEET_SIZE);
             ctx.closePath();
-            ctx.fillStyle = COLOR_FLEET;
+            ctx.fillStyle = (isHovered || isSelected) ? lighten(COLOR_FLEET, 0.4) : COLOR_FLEET;
             ctx.fill();
         }
     }
@@ -237,8 +251,22 @@
         return null;
     }
 
+    function findFleetAt(sx, sy) {
+        if (!gameState || !showFleetsCheck.checked) return null;
+        for (const fleet of gameState.fleets) {
+            const { x: fx, y: fy } = worldToScreen(fleet.x, fleet.y);
+            const dx = fx - sx;
+            const dy = fy - sy;
+            if (Math.sqrt(dx * dx + dy * dy) <= CLICK_TOLERANCE) {
+                return fleet;
+            }
+        }
+        return null;
+    }
+
     function showDetail(planet) {
         selectedPlanet = planet;
+        selectedFleet = null;
         detailName.textContent = planet.name;
 
         let html = "";
@@ -317,8 +345,32 @@
             </div>`;
     }
 
+    function showFleetDetail(fleet) {
+        selectedFleet = fleet;
+        selectedPlanet = null;
+        detailName.textContent = fleet.name;
+
+        let html = "";
+        html += `<div class="row"><span class="label">Position</span><span class="value">(${fleet.x}, ${fleet.y})</span></div>`;
+        html += `<div class="row"><span class="label">Owner</span><span class="value">Player ${fleet.owner + 1}</span></div>`;
+        html += `<div class="row"><span class="label">Ships</span><span class="value">${fleet.ship_count}</span></div>`;
+
+        if (fleet.waypoints && fleet.waypoints.length > 0) {
+            html += `<div class="section-title">Waypoints</div>`;
+            fleet.waypoints.forEach((wp, i) => {
+                const task = wp.task && wp.task !== "None" ? ` — ${wp.task}` : "";
+                html += `<div class="row"><span class="label">WP ${i + 1}</span><span class="value">(${wp.x}, ${wp.y}) Warp ${wp.warp}${task}</span></div>`;
+            });
+        }
+
+        detailBody.innerHTML = html;
+        detailPanel.classList.remove("hidden");
+        render();
+    }
+
     function hideDetail() {
         selectedPlanet = null;
+        selectedFleet = null;
         detailPanel.classList.add("hidden");
         render();
     }
@@ -361,14 +413,17 @@
         const mx = e.clientX - rect.left;
         const my = e.clientY - rect.top;
         const planet = findPlanetAt(mx, my);
+        const fleet = findFleetAt(mx, my);
 
-        if (planet !== hoveredPlanet) {
+        if (planet !== hoveredPlanet || fleet !== hoveredFleet) {
             hoveredPlanet = planet;
+            hoveredFleet = fleet;
             render();
         }
 
-        if (planet) {
-            tooltip.textContent = planet.name;
+        const hoverLabel = fleet ? fleet.name : (planet ? planet.name : null);
+        if (hoverLabel) {
+            tooltip.textContent = hoverLabel;
             tooltip.style.display = "block";
             tooltip.style.left = (e.clientX - rect.left + 14) + "px";
             tooltip.style.top = (e.clientY - rect.top - 8) + "px";
@@ -390,7 +445,10 @@
                 const mx = e.clientX - rect.left;
                 const my = e.clientY - rect.top;
                 const planet = findPlanetAt(mx, my);
-                if (planet) {
+                const fleet = findFleetAt(mx, my);
+                if (fleet) {
+                    showFleetDetail(fleet);
+                } else if (planet) {
                     showDetail(planet);
                 } else {
                     hideDetail();
@@ -405,6 +463,7 @@
     canvas.addEventListener("mouseleave", () => {
         isPanning = false;
         hoveredPlanet = null;
+        hoveredFleet = null;
         tooltip.style.display = "none";
         container.classList.remove("grabbing");
         render();

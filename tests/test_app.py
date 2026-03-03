@@ -99,6 +99,32 @@ class TestGameStateAPI:
             data = client.get("/api/game-state").get_json()
             assert data["year"] == 2401
 
+    def test_fleet_has_name_field(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            data = client.get("/api/game-state").get_json()
+            fleet = data["fleets"][0]
+            assert "name" in fleet, "Fleet must have a name field"
+            assert fleet["name"]  # non-empty
+
+    def test_fleet_name_includes_number(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            data = client.get("/api/game-state").get_json()
+            fleet = data["fleets"][0]
+            assert "#" in fleet["name"] or fleet["name"][0].isalpha()
+
+    def test_fleet_has_waypoints_field(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            data = client.get("/api/game-state").get_json()
+            fleet = data["fleets"][0]
+            assert "waypoints" in fleet, "Fleet must expose waypoints list"
+            assert isinstance(fleet["waypoints"], list)
+
     def test_invalid_dir_returns_500(self):
         app = create_app(game_dir="/nonexistent/path")
         with app.test_client() as client:

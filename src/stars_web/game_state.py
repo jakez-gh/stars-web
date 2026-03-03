@@ -179,9 +179,9 @@ class Fleet:
     owner: int
     x: int
     y: int
+    name: str = ""
     ship_count: int = 0
     waypoints: list[Waypoint] = field(default_factory=list)
-    # Minimal for now — expand as we parse more fields
 
 
 @dataclass
@@ -756,6 +756,7 @@ def _parse_fleet_block(block: Block) -> Fleet | None:
         owner=owner,
         x=x,
         y=y,
+        name=f"Fleet #{fleet_number}",
         ship_count=ship_count,
     )
 
