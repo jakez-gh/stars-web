@@ -230,3 +230,124 @@ class TestIndexPage:
             assert resp.status_code == 200
             assert b"star-map" in resp.data
             assert b"Stars!" in resp.data
+
+
+class TestWaypointOrdersAPI:
+    """Tests for POST /api/fleet/<id>/waypoints (issue #35)."""
+
+    def test_route_exists(self):
+        app = create_app(game_dir=TEST_DATA_DIR)
+        rules = [r.rule for r in app.url_map.iter_rules()]
+        assert any("waypoints" in r for r in rules)
+
+    def test_post_returns_200(self):
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            resp = client.post(
+                "/api/fleet/0/waypoints",
+                json={"waypoints": [{"x": 100, "y": 200, "warp": 5, "task": "None"}]},
+            )
+            assert resp.status_code == 200
+
+    def test_post_returns_stored_waypoints(self):
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            wps = [{"x": 100, "y": 200, "warp": 5, "task": "None"}]
+            data = client.post("/api/fleet/0/waypoints", json={"waypoints": wps}).get_json()
+            assert "waypoints" in data
+            assert data["waypoints"][0]["x"] == 100
+
+    def test_post_rejects_waypoint_missing_y(self):
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            resp = client.post("/api/fleet/0/waypoints", json={"waypoints": [{"x": 100}]})
+            assert resp.status_code == 400
+
+    def test_post_rejects_missing_waypoints_key(self):
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            resp = client.post("/api/fleet/0/waypoints", json={})
+            assert resp.status_code == 400
+
+    def test_post_empty_list_clears_pending(self):
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            client.post(
+                "/api/fleet/0/waypoints",
+                json={"waypoints": [{"x": 1, "y": 2, "warp": 5, "task": "None"}]},
+            )
+            data = client.post("/api/fleet/0/waypoints", json={"waypoints": []}).get_json()
+            assert data["waypoints"] == []
+
+    def test_pending_visible_in_game_state(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            state = client.get("/api/game-state").get_json()
+            fleet_id = state["fleets"][0]["id"]
+            client.post(
+                f"/api/fleet/{fleet_id}/waypoints",
+                json={"waypoints": [{"x": 999, "y": 888, "warp": 7, "task": "None"}]},
+            )
+            state2 = client.get("/api/game-state").get_json()
+            fleet = next(f for f in state2["fleets"] if f["id"] == fleet_id)
+            assert any(wp["x"] == 999 for wp in fleet["waypoints"])
+
+
+class TestProductionOrdersAPI:
+    """Tests for POST /api/planet/<id>/production (issue #42)."""
+
+    def test_route_exists(self):
+        app = create_app(game_dir=TEST_DATA_DIR)
+        rules = [r.rule for r in app.url_map.iter_rules()]
+        assert any("production" in r for r in rules)
+
+    def test_post_returns_200(self):
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            resp = client.post(
+                "/api/planet/0/production",
+                json=[{"name": "Factory", "quantity": 5}],
+            )
+            assert resp.status_code == 200
+
+    def test_post_returns_stored_queue(self):
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            data = client.post(
+                "/api/planet/0/production",
+                json=[{"name": "Factory", "quantity": 5}],
+            ).get_json()
+            assert isinstance(data, list)
+            assert data[0]["name"] == "Factory"
+            assert data[0]["quantity"] == 5
+
+    def test_post_rejects_item_missing_name(self):
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            resp = client.post("/api/planet/0/production", json=[{"quantity": 5}])
+            assert resp.status_code == 400
+
+    def test_post_rejects_non_list_body(self):
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            resp = client.post("/api/planet/0/production", json={"name": "Factory", "quantity": 5})
+            assert resp.status_code == 400
+
+    def test_pending_visible_in_game_state(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            state = client.get("/api/game-state").get_json()
+            planet = next(p for p in state["planets"] if p["owner"] >= 0)
+            planet_id = planet["id"]
+            client.post(
+                f"/api/planet/{planet_id}/production",
+                json=[{"name": "Mine", "quantity": 99}],
+            )
+            state2 = client.get("/api/game-state").get_json()
+            p2 = next(p for p in state2["planets"] if p["id"] == planet_id)
+            assert any(
+                qi["name"] == "Mine" and qi.get("quantity", qi.get("count")) == 99
+                for qi in p2["production_queue"]
+            )

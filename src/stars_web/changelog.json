@@ -1,10 +1,11 @@
 {
-  "id": "2026-03-02-006",
-  "title": "Add Waypoint form in fleet panel",
+  "id": "2026-03-02-007",
+  "title": "Issue orders via web UI",
   "items": [
-    "Fleet panel now shows an 'Add Waypoint' section with a planet dropdown",
-    "Selecting a planet auto-fills the X/Y coordinate fields",
-    "Warp speed selector (1\u20139, default 5) and 'Add Waypoint' button visible",
-    "Button is present but orders are not yet submitted (issue #35 next)"
+    "Fleet panel 'Add Waypoint' button now submits to the server (closes #35, #36)",
+    "Waypoints persist across game-state refreshes while the session is running",
+    "Planet panel now shows an 'Add to Queue' section for owned planets (closes #40, #43)",
+    "Select a structure or ship design and quantity, then click Add to append to the production queue",
+    "Success and error feedback shown as a brief toast notification"
   ]
 }

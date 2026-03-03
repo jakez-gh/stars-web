@@ -73,6 +73,19 @@
     tooltip.id = "tooltip";
     document.getElementById("app").appendChild(tooltip);
 
+    // Toast element
+    const toast = document.createElement("div");
+    toast.id = "toast";
+    document.getElementById("app").appendChild(toast);
+
+    function showToast(message, isError = false) {
+        toast.textContent = message;
+        toast.className = isError ? "error" : "";
+        toast.classList.add("visible");
+        clearTimeout(toast._timer);
+        toast._timer = setTimeout(() => toast.classList.remove("visible"), 2500);
+    }
+
     // --- Coordinate transforms ---
 
     function worldToScreen(wx, wy) {
@@ -338,14 +351,67 @@
             html += `<div class="section-title">Production Queue</div>`;
             planet.production_queue.forEach((item, i) => {
                 const pct = item.complete_percent > 0 ? ` (${item.complete_percent}%)` : "";
-                html += `<div class="row"><span class="label">${i + 1}.</span><span class="value">${item.count}× ${item.name}${pct}</span></div>`;
+                const qty = item.quantity ?? item.count ?? 0;
+                html += `<div class="row"><span class="label">${i + 1}.</span><span class="value">${qty}\u00d7 ${item.name}${pct}</span></div>`;
             });
         } else if (planet.owner >= 0) {
             html += `<div class="section-title">Production Queue</div>`;
             html += `<div class="row"><span class="label" style="color:#888">Queue is empty</span></div>`;
         }
 
+        // Add to Queue form (owned planets only)
+        if (planet.owner >= 0) {
+            html += `<div class="section-title">Add to Queue</div>`;
+            html += `<div class="queue-form">`;
+            html += `<select id="q-item">`;
+            [
+                { id: 7, name: "Factory" },
+                { id: 8, name: "Mine" },
+                { id: 9, name: "Defense" },
+                { id: 3, name: "Auto Alchemy" },
+            ].forEach((item) => {
+                html += `<option value="${item.id}">${item.name}</option>`;
+            });
+            (gameState.designs || []).forEach((d) => {
+                html += `<option value="d${d.id}">${d.name} (${d.hull_name})</option>`;
+            });
+            html += `</select>`;
+            html += `<label class="wp-warp-label">Qty <input type="number" id="q-count" value="1" min="1" class="q-count-input"></label>`;
+            html += `<button id="q-add-btn" class="wp-add-btn">Add</button>`;
+            html += `</div>`;
+        }
+
         detailBody.innerHTML = html;
+
+        // Wire Add to Queue button
+        if (planet.owner >= 0) {
+            document.getElementById("q-add-btn").addEventListener("click", async () => {
+                const itemSel = document.getElementById("q-item");
+                const qty = parseInt(document.getElementById("q-count").value, 10) || 1;
+                const name = itemSel.selectedOptions[0].textContent;
+                const newQueue = [
+                    ...(planet.production_queue || []).map((qi) => ({
+                        name: qi.name,
+                        quantity: qi.quantity ?? qi.count ?? 1,
+                    })),
+                    { name, quantity: qty },
+                ];
+                try {
+                    const resp = await fetch(`/api/planet/${planet.id}/production`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(newQueue),
+                    });
+                    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                    planet.production_queue = await resp.json();
+                    showDetail(planet);
+                    showToast("Added to queue");
+                } catch (err) {
+                    showToast("Error: " + err.message, true);
+                }
+            });
+        }
+
         detailPanel.classList.remove("hidden");
         render();
     }
@@ -429,9 +495,41 @@
             }
         });
 
-        // Add button — not wired yet; see issue #35/#36
-        document.getElementById("wp-add-btn").addEventListener("click", () => {
-            // TODO: POST to /api/fleet/{id}/waypoints
+        // Add button — wire to POST /api/fleet/{id}/waypoints
+        document.getElementById("wp-add-btn").addEventListener("click", async () => {
+            const xVal = parseInt(document.getElementById("wp-x").value, 10);
+            const yVal = parseInt(document.getElementById("wp-y").value, 10);
+            const warpVal = parseInt(document.getElementById("wp-warp").value, 10);
+
+            if (isNaN(xVal) || isNaN(yVal)) {
+                showToast("Enter X and Y coordinates", true);
+                return;
+            }
+
+            const newWps = [
+                ...(fleet.waypoints || []).map((wp) => ({
+                    x: wp.x,
+                    y: wp.y,
+                    warp: wp.warp,
+                    task: wp.task,
+                })),
+                { x: xVal, y: yVal, warp: warpVal, task: "None" },
+            ];
+
+            try {
+                const resp = await fetch(`/api/fleet/${fleet.id}/waypoints`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ waypoints: newWps }),
+                });
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                const data = await resp.json();
+                fleet.waypoints = data.waypoints;
+                showFleetDetail(fleet);
+                showToast("Waypoint added");
+            } catch (err) {
+                showToast("Error: " + err.message, true);
+            }
         });
 
         detailPanel.classList.remove("hidden");
