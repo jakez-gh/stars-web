@@ -67,6 +67,29 @@ HULL_NAMES = {
 # Block type constant for ship/starbase designs
 BLOCK_TYPE_DESIGN = 26
 
+# Block type constant for production queues
+BLOCK_TYPE_PRODUCTION_QUEUE = 28
+
+# Standard production queue item names by ID (itemType == 2)
+QUEUE_ITEM_NAMES = {
+    0: "Auto Mines",
+    1: "Auto Factories",
+    2: "Auto Defenses",
+    3: "Auto Alchemy",
+    4: "Auto Min Terraform",
+    5: "Auto Max Terraform",
+    6: "Auto Mineral Packets",
+    7: "Factory",
+    8: "Mine",
+    9: "Defense",
+    11: "Mineral Alchemy",
+    14: "Ironium Mineral Packet",
+    15: "Boranium Mineral Packet",
+    16: "Germanium Mineral Packet",
+    17: "Mixed Mineral Packet",
+    27: "Planetary Scanner",
+}
+
 
 @dataclass
 class Planet:
@@ -133,6 +156,21 @@ class ShipDesign:
 
 
 @dataclass
+class ProductionQueueItem:
+    """A single item in a planet's production queue.
+
+    item_type 2 = standard (factory, mine, etc.)
+    item_type 4 = custom (ship/starbase design)
+    """
+
+    item_id: int
+    count: int
+    complete_percent: int
+    item_type: int
+    item_name: str
+
+
+@dataclass
 class GameSettings:
     """Parsed game settings from the planets block (type 7)."""
 
@@ -169,6 +207,7 @@ class GameState:
     planets: list[Planet] = field(default_factory=list)
     fleets: list[Fleet] = field(default_factory=list)
     designs: list[ShipDesign] = field(default_factory=list)
+    production_queues: dict[int, list[ProductionQueueItem]] = field(default_factory=dict)
 
 
 def parse_design_block(block: Block) -> ShipDesign | None:
@@ -249,6 +288,51 @@ def parse_design_block(block: Block) -> ShipDesign | None:
         total_built=total_built,
         total_remaining=total_remaining,
     )
+
+
+def parse_production_queue_block(
+    block: Block,
+) -> list[ProductionQueueItem] | None:
+    """Parse a type-28 production queue block.
+
+    Queue format (from starsapi ProductionQueue.java):
+      Every 4 bytes is one queue item:
+        chunk1 (u16 LE): itemId = top 6 bits, count = bottom 10 bits
+        chunk2 (u16 LE): completePercent = top 12 bits, itemType = bottom 4 bits
+
+    itemType: 2=standard (factory/mine/etc.), 4=custom (ship/starbase design)
+    """
+    if block.type_id != BLOCK_TYPE_PRODUCTION_QUEUE:
+        return None
+
+    data = block.data
+    items: list[ProductionQueueItem] = []
+
+    for i in range(0, len(data) - 3, 4):
+        chunk1 = struct.unpack_from("<H", data, i)[0]
+        chunk2 = struct.unpack_from("<H", data, i + 2)[0]
+
+        item_id = chunk1 >> 10
+        count = chunk1 & 0x3FF
+        complete_percent = chunk2 >> 4
+        item_type = chunk2 & 0xF
+
+        if item_type == 4:
+            item_name = f"Ship Design #{item_id}"
+        else:
+            item_name = QUEUE_ITEM_NAMES.get(item_id, f"Unknown Item {item_id}")
+
+        items.append(
+            ProductionQueueItem(
+                item_id=item_id,
+                count=count,
+                complete_percent=complete_percent,
+                item_type=item_type,
+                item_name=item_name,
+            )
+        )
+
+    return items
 
 
 def _parse_planets_from_xy(blocks: list[Block]) -> tuple[list[Planet], GameSettings]:
@@ -537,9 +621,11 @@ def load_game(game_dir: str, player: int = 0) -> GameState:
         state.turn = m_hdr.turn
         state.year = m_hdr.year
 
+        last_planet_id = None
         for block in m_blocks:
             if block.type_id in (13, 14):
                 _parse_planet_block(block, planets_by_id)
+                last_planet_id = block.data[0] | ((block.data[1] & 0x07) << 8)
             elif block.type_id in (16, 17):
                 fleet = _parse_fleet_block(block)
                 if fleet is not None:
@@ -548,5 +634,10 @@ def load_game(game_dir: str, player: int = 0) -> GameState:
                 design = parse_design_block(block)
                 if design is not None:
                     state.designs.append(design)
+            elif block.type_id == BLOCK_TYPE_PRODUCTION_QUEUE:
+                if last_planet_id is not None:
+                    items = parse_production_queue_block(block)
+                    if items is not None:
+                        state.production_queues[last_planet_id] = items
 
     return state
