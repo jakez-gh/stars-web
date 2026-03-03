@@ -293,6 +293,26 @@ body {
     font-family: inherit;
 }
 
+/* Remove button on each queue row */
+
+.q-rm-btn {
+    background: none;
+    border: 1px solid #552222;
+    color: #cc6666;
+    border-radius: 3px;
+    padding: 0 4px;
+    font-size: 11px;
+    cursor: pointer;
+    line-height: 1.4;
+    margin-left: 6px;
+    vertical-align: middle;
+}
+
+.q-rm-btn:hover {
+    background: #3a1a1a;
+    color: #ff9999;
+}
+
 /* --- Toast notification --- */
 
 #toast {

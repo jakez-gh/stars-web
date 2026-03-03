@@ -352,7 +352,11 @@
             planet.production_queue.forEach((item, i) => {
                 const pct = item.complete_percent > 0 ? ` (${item.complete_percent}%)` : "";
                 const qty = item.quantity ?? item.count ?? 0;
-                html += `<div class="row"><span class="label">${i + 1}.</span><span class="value">${qty}\u00d7 ${item.name}${pct}</span></div>`;
+                const rmBtn =
+                    planet.owner >= 0
+                        ? ` <button class="q-rm-btn" data-rm-idx="${i}" title="Remove">×</button>`
+                        : "";
+                html += `<div class="row queue-row"><span class="label">${i + 1}.</span><span class="value">${qty}\u00d7 ${item.name}${pct}${rmBtn}</span></div>`;
             });
         } else if (planet.owner >= 0) {
             html += `<div class="section-title">Production Queue</div>`;
@@ -382,6 +386,34 @@
         }
 
         detailBody.innerHTML = html;
+
+        // Wire remove-from-queue buttons
+        if (planet.owner >= 0) {
+            detailBody.querySelectorAll("[data-rm-idx]").forEach((btn) => {
+                btn.addEventListener("click", async () => {
+                    const idx = parseInt(btn.dataset.rmIdx, 10);
+                    const newQueue = (planet.production_queue || [])
+                        .filter((_, j) => j !== idx)
+                        .map((qi) => ({
+                            name: qi.name,
+                            quantity: qi.quantity ?? qi.count ?? 1,
+                        }));
+                    try {
+                        const resp = await fetch(`/api/planet/${planet.id}/production`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify(newQueue),
+                        });
+                        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                        planet.production_queue = await resp.json();
+                        showDetail(planet);
+                        showToast("Removed from queue");
+                    } catch (err) {
+                        showToast("Error: " + err.message, true);
+                    }
+                });
+            });
+        }
 
         // Wire Add to Queue button
         if (planet.owner >= 0) {

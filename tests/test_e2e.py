@@ -344,3 +344,28 @@ class TestProductionQueueAdd:
             f"() => (window._gameState.planets.find(p => p.id === {planet_id}).production_queue || []).length"
         )
         assert final == initial + 1
+
+    def test_remove_from_queue_shows_toast(self, page):
+        """Clicking × on a queue row removes it and shows 'Removed from queue' toast."""
+        page.goto(BASE_URL)
+        pos = self._get_owned_planet_pos(page)
+
+        planet_id = page.evaluate("() => window._gameState.planets.find(p => p.owner >= 0).id")
+
+        # First add an item so the queue has at least one row with a remove button.
+        page.evaluate(
+            f"""async () => {{
+                await fetch('/api/planet/{planet_id}/production', {{
+                    method: 'POST',
+                    headers: {{'Content-Type': 'application/json'}},
+                    body: JSON.stringify([{{name: 'Mine', quantity: 1}}]),
+                }});
+            }}"""
+        )
+
+        # Open the planet panel (re-click to pick up the seeded queue).
+        page.click("#star-map", position={"x": pos["x"], "y": pos["y"]})
+        page.wait_for_selector(".q-rm-btn", timeout=3000)
+        page.click(".q-rm-btn")
+        page.wait_for_selector("#toast.visible", timeout=5000)
+        assert page.text_content("#toast") == "Removed from queue"

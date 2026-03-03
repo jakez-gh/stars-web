@@ -351,3 +351,34 @@ class TestProductionOrdersAPI:
                 qi["name"] == "Mine" and qi.get("quantity", qi.get("count")) == 99
                 for qi in p2["production_queue"]
             )
+
+    def test_post_shorter_list_removes_items(self):
+        """Posting a subset replaces the full queue, enabling client-side remove."""
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            # Add two items
+            client.post(
+                "/api/planet/1/production",
+                json=[{"name": "Mine", "quantity": 3}, {"name": "Factory", "quantity": 5}],
+            )
+            # Remove the first by posting only the second
+            resp = client.post(
+                "/api/planet/1/production",
+                json=[{"name": "Factory", "quantity": 5}],
+            )
+            assert resp.status_code == 200
+            data = resp.get_json()
+            assert len(data) == 1
+            assert data[0]["name"] == "Factory"
+
+    def test_post_empty_list_clears_queue(self):
+        """Posting an empty list replaces the queue with nothing."""
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            client.post(
+                "/api/planet/1/production",
+                json=[{"name": "Mine", "quantity": 2}],
+            )
+            resp = client.post("/api/planet/1/production", json=[])
+            assert resp.status_code == 200
+            assert resp.get_json() == []
