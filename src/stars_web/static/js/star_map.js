@@ -45,9 +45,7 @@
     Object.defineProperty(window, "_gameState", { get: () => gameState, configurable: true });
     Object.defineProperty(window, "_viewX",     { get: () => viewX,     configurable: true });
     Object.defineProperty(window, "_viewY",     { get: () => viewY,     configurable: true });
-    Object.defineProperty(window, "_zoom",      { get: () => zoom,      configurable: true });
-
-    // Pan state
+    Object.defineProperty(window, "_zoom",      { get: () => zoom,      configurable: true });    // Pan state
     let isPanning = false;
     let panStartX = 0;
     let panStartY = 0;
@@ -68,6 +66,10 @@
     const showFleetsCheck = document.getElementById("show-fleets");
     const showUnownedCheck = document.getElementById("show-unowned");
     const submitTurnBtn = document.getElementById("submit-turn-btn");
+    const hostLogPanel = document.getElementById("host-log-panel");
+    const hostLogTitle = document.getElementById("host-log-title");
+    const hostLogBody = document.getElementById("host-log-body");
+    const hostLogClose = document.getElementById("host-log-close");
 
     // Tooltip element
     const tooltip = document.createElement("div");
@@ -86,6 +88,37 @@
         clearTimeout(toast._timer);
         toast._timer = setTimeout(() => toast.classList.remove("visible"), 2500);
     }
+
+    function showHostLog(status, title, log) {
+        hostLogPanel.className = status === "ok" ? "ok" : "error";
+        hostLogTitle.textContent = title;
+        hostLogBody.textContent = log || "(no output)";
+        hostLogPanel.classList.remove("hidden");
+    }
+
+    hostLogClose.addEventListener("click", () => {
+        hostLogPanel.classList.add("hidden");
+    });
+
+    submitTurnBtn.addEventListener("click", async () => {
+        const origText = submitTurnBtn.textContent;
+        submitTurnBtn.disabled = true;
+        submitTurnBtn.textContent = "Submitting…";
+        try {
+            const resp = await fetch("/game/submit-turn", { method: "POST" });
+            const data = await resp.json();
+            if (data.status === "ok") {
+                showHostLog("ok", "Turn submitted — host run complete", data.log);
+                await loadGameState();
+            } else {
+                showHostLog("error", "Host run failed", data.log);
+            }
+        } catch (err) {
+            showHostLog("error", "Submit failed", err.message);
+        }
+        submitTurnBtn.textContent = origText;
+        // Button re-enabled by loadGameState() toggling has_pending_orders
+    });
 
     // --- Coordinate transforms ---
 
@@ -748,6 +781,7 @@
     }
 
     loadGameState();
+    window._loadGameState = loadGameState;  // exposed for E2E tests
 
     // --- Changelog modal ---
     const CHANGELOG_POLL_MS = 5000;

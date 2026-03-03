@@ -369,3 +369,80 @@ class TestProductionQueueAdd:
         page.click(".q-rm-btn")
         page.wait_for_selector("#toast.visible", timeout=5000)
         assert page.text_content("#toast") == "Removed from queue"
+
+
+class TestSubmitTurn:
+    """Tests for the Submit Turn button and host log panel (#51, #52)."""
+
+    def _seed_pending_waypoint(self, page):
+        """POST a pending waypoint to enable the Submit Turn button."""
+        fleet_id = page.evaluate("() => window._gameState.fleets[0]?.id ?? 1")
+        page.evaluate(
+            f"""async () => {{
+                await fetch('/api/fleet/{fleet_id}/waypoints', {{
+                    method: 'POST',
+                    headers: {{'Content-Type': 'application/json'}},
+                    body: JSON.stringify({{waypoints: [{{x: 100, y: 100, warp: 5}}]}}),
+                }});
+            }}"""
+        )
+
+    def test_submit_turn_button_exists(self, page):
+        """Submit Turn button is present in the toolbar."""
+        page.goto(BASE_URL)
+        btn = page.locator("#submit-turn-btn")
+        assert btn.count() == 1
+
+    def test_submit_turn_button_initially_disabled(self, page):
+        """Button is disabled when no pending orders exist."""
+        page.goto(BASE_URL)
+        page.wait_for_function("window._gameState !== undefined", timeout=5000)
+        btn = page.locator("#submit-turn-btn")
+        assert btn.is_disabled()
+
+    def test_submit_turn_shows_host_log_panel(self, page):
+        """Clicking Submit Turn shows the host-log-panel (success or error)."""
+        page.goto(BASE_URL)
+        page.wait_for_function("window._gameState !== undefined", timeout=5000)
+
+        # Seed a waypoint so the button is enabled
+        self._seed_pending_waypoint(page)
+
+        # Reload game state so the button becomes enabled
+        page.evaluate("() => window._loadGameState && window._loadGameState()")
+        page.wait_for_function(
+            "document.getElementById('submit-turn-btn').disabled === false",
+            timeout=5000,
+        )
+
+        # Click Submit Turn and wait for the log panel to appear
+        page.click("#submit-turn-btn")
+        page.wait_for_function(
+            "!document.getElementById('host-log-panel').classList.contains('hidden')",
+            timeout=15000,
+        )
+
+        log_body = page.text_content("#host-log-body")
+        assert log_body is not None  # Panel appeared with some content
+
+    def test_host_log_panel_dismissible(self, page):
+        """Closing the host log panel hides it."""
+        page.goto(BASE_URL)
+        page.wait_for_function("window._gameState !== undefined", timeout=5000)
+        self._seed_pending_waypoint(page)
+        page.wait_for_function(
+            "document.getElementById('submit-turn-btn').disabled === false",
+            timeout=5000,
+        )
+
+        page.click("#submit-turn-btn")
+        page.wait_for_function(
+            "!document.getElementById('host-log-panel').classList.contains('hidden')",
+            timeout=15000,
+        )
+
+        page.click("#host-log-close")
+        page.wait_for_function(
+            "document.getElementById('host-log-panel').classList.contains('hidden')",
+            timeout=3000,
+        )
