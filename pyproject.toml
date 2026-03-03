@@ -20,6 +20,7 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+pythonpath = ["src"]
 addopts = ["--verbose", "--tb=short", "-m", "not e2e"]
 markers = [
     "e2e: end-to-end browser tests (require playwright install chromium)",

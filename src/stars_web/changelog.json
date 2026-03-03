@@ -1,16 +1,16 @@
 {
-  "id": "2026-03-02-002",
-  "title": "Changelog Modal + GitHub Actions CI",
+  "id": "2026-03-02-003",
+  "title": "TDD kill_port + E2E test skeleton",
   "items": [
-    "Added /api/changelog endpoint to serve what's-new data from changelog.json",
-    "Added changelog modal overlay to star map UI — appears automatically on each new deploy",
-    "Modal polls every 5 seconds; compares entry id vs localStorage to detect new deploys",
-    "On new entry: game state reloads + modal shown; dismiss persists seen id to localStorage",
-    "Dark-themed modal card matches existing space UI (gold title, blue dismiss button)",
-    "Added .github/workflows/ci.yml — runs pre-commit + pytest on every push and PR",
-    "Broke down M2/M3 epics into 21 atomic sub-issues (#33–#53) with layer labels and DoD",
-    "Created 7 layer labels (layer:ui, layer:api, layer:test, etc.) for parallel-safe planning",
-    "Wired Blocked-by/Blocks chains in all sub-issue bodies; 17 issues marked blocked",
-    "Added all issues to GitHub Project board #1 (48 items total)"
+    "kill_port(port) added to run.py: kills any process on port 5000 before starting Flask",
+    "Starting the server now always evicts the old one — no more port pile-up",
+    "tests/test_run.py: 4 unit tests written RED-first, now GREEN (kill_port TDD cycle)",
+    "tests/test_e2e.py: 12 Playwright E2E tests spec'd as TDD failing tests",
+    "E2E tests cover: page loads (200, no 500), canvas, game-title from API, changelog modal",
+    "Modal tests: appears on fresh load, has title/items, dismiss works, persists reload",
+    "pyproject.toml: added pytest-playwright; e2e marker; addopts excludes e2e by default",
+    "ci.yml: split into unit-test step + playwright install + e2e step",
+    "start.ps1: new PowerShell launcher that kills port 5000 before starting",
+    "start.bat: fixed to use absolute PYTHONPATH (%~dp0src)"
   ]
 }
