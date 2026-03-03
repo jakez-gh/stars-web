@@ -17,8 +17,9 @@ from the autoplay repo (`../autoplay/tests/data/Game.*`).
 | test_app.py | Flask app factory, API JSON, HTML page, error handling | 12 |
 | test_ship_designs.py | Stars! string decoding, ShipDesign dataclass, design block parsing, real file integration | 18 |
 | test_production_queues.py | Queue item names, block parsing, real file integration | 17 |
+| test_waypoints.py | Waypoint task names, block parsing, real file integration | 16 |
 
-## Total: 165 tests
+## Total: 181 tests
 
 ## Test Data
 
