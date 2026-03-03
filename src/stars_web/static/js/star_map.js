@@ -67,6 +67,7 @@
     const showNamesCheck = document.getElementById("show-names");
     const showFleetsCheck = document.getElementById("show-fleets");
     const showUnownedCheck = document.getElementById("show-unowned");
+    const overlayModeSelect = document.getElementById("overlay-mode");
     const submitTurnBtn = document.getElementById("submit-turn-btn");
     const hostLogPanel = document.getElementById("host-log-panel");
     const hostLogTitle = document.getElementById("host-log-title");
@@ -213,6 +214,13 @@
                 radius = HOMEWORLD_RADIUS;
             } else if (planet.owner >= 0) {
                 color = COLOR_OWNED;
+            }
+
+            // Overlay mode overrides color (and optionally radius)
+            const ovColor = overlayColor(planet);
+            if (ovColor !== null) {
+                color = ovColor;
+                if (planet.is_homeworld) radius = HOMEWORLD_RADIUS;
             }
 
             // Starbase indicator — ring around the planet
@@ -607,12 +615,72 @@
         render();
     }
 
+    // --- Overlay helpers ---
+
+    /**
+     * Returns an overlay color string for a planet based on the current overlay
+     * mode, or null when overlay is "none" (use default color).
+     */
+    function overlayColor(planet) {
+        const mode = overlayModeSelect.value;
+
+        if (mode === "population") {
+            if (planet.population <= 0) return "#1a2a3a";
+            // log10 scale: 1k=3, 100k=5, 1M=6, 3M≈6.5
+            const t = Math.min(1, Math.log10(planet.population + 1) / 6.5);
+            // ramp: dark-blue → cyan → white
+            if (t < 0.5) {
+                const u = t * 2;
+                return `rgb(${Math.round(30 + 191 * u)}, ${Math.round(80 + 140 * u)}, ${Math.round(180 + 50 * u)})`;
+            }
+            const u = (t - 0.5) * 2;
+            return `rgb(${Math.round(221 + 34 * u)}, ${Math.round(220 + 35 * u)}, 255)`;
+        }
+
+        if (mode === "minerals") {
+            const r = Math.round(Math.min(255, (planet.ironium_conc  / 120) * 255));
+            const g = Math.round(Math.min(255, (planet.boranium_conc / 120) * 255));
+            const b = Math.round(Math.min(255, (planet.germanium_conc / 120) * 255));
+            // Unscanned / all-zero: dark slate
+            if (r === 0 && g === 0 && b === 0) return "#1e1e2e";
+            return `rgb(${r}, ${g}, ${b})`;
+        }
+
+        if (mode === "habitability") {
+            const hasEnv = planet.has_environment_info ||
+                planet.gravity !== 0 || planet.temperature !== 0 || planet.radiation !== 0;
+            if (!hasEnv) return "#1e1e2e";
+            // Proximity to 50 on each axis (50 = neutral/ideal proxy)
+            const gravScore = 1 - Math.abs(planet.gravity    - 50) / 50;
+            const tempScore = 1 - Math.abs(planet.temperature - 50) / 50;
+            const radScore  = 1 - Math.abs(planet.radiation   - 50) / 50;
+            const score = Math.max(0, Math.min(1, (gravScore + tempScore + radScore) / 3));
+            // 0 → red, 0.5 → yellow, 1 → green
+            let rC, gC;
+            if (score < 0.5) {
+                rC = 210;
+                gC = Math.round(score * 2 * 180);
+            } else {
+                rC = Math.round((1 - (score - 0.5) * 2) * 210);
+                gC = 200;
+            }
+            return `rgb(${rC}, ${gC}, 20)`;
+        }
+
+        return null; // mode === "none" — use default
+    }
+
     // --- Color utility ---
 
-    function lighten(hex, amount) {
-        const r = parseInt(hex.slice(1, 3), 16);
-        const g = parseInt(hex.slice(3, 5), 16);
-        const b = parseInt(hex.slice(5, 7), 16);
+    function lighten(color, amount) {
+        let r, g, b;
+        if (color.startsWith("rgb")) {
+            [r, g, b] = color.match(/\d+/g).map(Number);
+        } else {
+            r = parseInt(color.slice(1, 3), 16);
+            g = parseInt(color.slice(3, 5), 16);
+            b = parseInt(color.slice(5, 7), 16);
+        }
         const nr = Math.min(255, Math.round(r + (255 - r) * amount));
         const ng = Math.min(255, Math.round(g + (255 - g) * amount));
         const nb = Math.min(255, Math.round(b + (255 - b) * amount));
@@ -729,6 +797,7 @@
     showNamesCheck.addEventListener("change", render);
     showFleetsCheck.addEventListener("change", render);
     showUnownedCheck.addEventListener("change", render);
+    overlayModeSelect.addEventListener("change", render);
 
     window.addEventListener("resize", resize);
 
