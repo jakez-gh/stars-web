@@ -125,6 +125,27 @@ class TestGameStateAPI:
             assert "waypoints" in fleet, "Fleet must expose waypoints list"
             assert isinstance(fleet["waypoints"], list)
 
+    def test_planet_has_production_queue_field(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            data = client.get("/api/game-state").get_json()
+            planet = data["planets"][0]
+            assert "production_queue" in planet, "Planet must have a production_queue field"
+            assert isinstance(planet["production_queue"], list)
+
+    def test_owned_planet_production_queue_items_have_name_and_count(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            data = client.get("/api/game-state").get_json()
+            owned = [p for p in data["planets"] if p["owner"] >= 0]
+            assert owned, "No owned planets to test queue on"
+            for planet in owned:
+                for item in planet["production_queue"]:
+                    assert "name" in item, f"Queue item missing 'name' on planet {planet['name']}"
+                    assert "count" in item, f"Queue item missing 'count' on planet {planet['name']}"
+
     def test_invalid_dir_returns_500(self):
         app = create_app(game_dir="/nonexistent/path")
         with app.test_client() as client:

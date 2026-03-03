@@ -1,10 +1,9 @@
 {
-  "id": "2026-03-02-004",
-  "title": "Fleet detail panel",
+  "id": "2026-03-02-005",
+  "title": "Planet production queue",
   "items": [
-    "Click any fleet triangle to open its detail panel (name, position, owner, ship count)",
-    "Waypoint list shown in the fleet panel when the fleet has orders",
-    "Hovering a fleet shows a name tooltip, matching planet hover behaviour",
-    "Selected fleet gets a white selection ring; hovered fleet brightens"
+    "Clicking an owned planet now shows its production queue below the environment section",
+    "Queue items display as: '1. 10\u00d7 Factory (75%)' with partial-completion percentage",
+    "Owned planets with an empty queue show 'Queue is empty'"
   ]
 }

@@ -63,6 +63,7 @@ def create_app(game_dir: str | None = None) -> Flask:
 
         planets = []
         for p in state.planets:
+            queue = state.production_queues.get(p.planet_id, [])
             planet_data = {
                 "id": p.planet_id,
                 "name": p.name,
@@ -84,6 +85,14 @@ def create_app(game_dir: str | None = None) -> Flask:
                 "radiation": p.radiation,
                 "has_starbase": p.has_starbase,
                 "is_homeworld": p.is_homeworld,
+                "production_queue": [
+                    {
+                        "name": qi.item_name,
+                        "count": qi.count,
+                        "complete_percent": qi.complete_percent,
+                    }
+                    for qi in queue
+                ],
             }
             planets.append(planet_data)
 

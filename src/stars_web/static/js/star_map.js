@@ -327,6 +327,18 @@
             html += `<div class="row"><span class="label">Rad</span><span class="value">${planet.radiation}</span></div>`;
         }
 
+        // Production queue
+        if (planet.production_queue && planet.production_queue.length > 0) {
+            html += `<div class="section-title">Production Queue</div>`;
+            planet.production_queue.forEach((item, i) => {
+                const pct = item.complete_percent > 0 ? ` (${item.complete_percent}%)` : "";
+                html += `<div class="row"><span class="label">${i + 1}.</span><span class="value">${item.count}× ${item.name}${pct}</span></div>`;
+            });
+        } else if (planet.owner >= 0) {
+            html += `<div class="section-title">Production Queue</div>`;
+            html += `<div class="row"><span class="label" style="color:#888">Queue is empty</span></div>`;
+        }
+
         detailBody.innerHTML = html;
         detailPanel.classList.remove("hidden");
         render();
