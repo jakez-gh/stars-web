@@ -43,8 +43,9 @@ repos:
   - repo: local
     hooks:
       - id: pytest
-        name: pytest
-        entry: python -m pytest tests/ -x -q --tb=short
+        name: pytest (with 50% coverage threshold, property-based tests, parallel)
+        entry: python -m pytest tests/ --cov=src/stars_web --cov-fail-under=50 -x --tb=short
         language: system
         pass_filenames: false
         always_run: true
+        stages: [commit]

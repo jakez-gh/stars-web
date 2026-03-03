@@ -13,6 +13,9 @@ dev = [
     "pytest-cov>=4.1",
     "pytest-playwright>=0.4",
     "pre-commit>=4.0",
+    "hypothesis>=6.88",
+    "pytest-xdist>=3.5",
+    "pytest-timeout>=2.2",
 ]
 
 [tool.pytest.ini_options]
@@ -21,10 +24,42 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 pythonpath = ["src"]
-addopts = ["--verbose", "--tb=short", "-m", "not e2e"]
+addopts = [
+    "--verbose",
+    "--tb=short",
+    "-m",
+    "not e2e",
+    "--cov=src/stars_web",
+    "--cov-report=term-missing:skip-covered",
+    "--cov-report=html",
+    "--cov-report=xml",
+    "--cov-fail-under=50",
+    "--timeout=30",
+    "-n",
+    "auto",
+]
 markers = [
     "e2e: end-to-end browser tests (require playwright install chromium)",
+    "slow: slow integration tests",
 ]
+
+[tool.coverage.run]
+branch = true
+omit = [
+    "*/tests/*",
+    "*/__main__.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
+precision = 2
 
 [build-system]
 requires = ["setuptools>=68.0"]
