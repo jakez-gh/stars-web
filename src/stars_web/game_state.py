@@ -87,6 +87,23 @@ WAYPOINT_TASKS = {
     9: "Transfer",
 }
 
+# Block type constant for player/race data
+BLOCK_TYPE_PLAYER = 6
+
+# Primary Racial Trait names by ID
+PRT_NAMES = {
+    0: "Hyper-Expansion",
+    1: "Super Stealth",
+    2: "War Monger",
+    3: "Claim Adjuster",
+    4: "Inner Strength",
+    5: "Space Demolition",
+    6: "Packet Physics",
+    7: "Interstellar Traveler",
+    8: "Alternate Reality",
+    9: "Jack of All Trades",
+}
+
 # Standard production queue item names by ID (itemType == 2)
 QUEUE_ITEM_NAMES = {
     0: "Auto Mines",
@@ -206,6 +223,34 @@ class ProductionQueueItem:
 
 
 @dataclass
+class PlayerRace:
+    """Player and race data from a type-6 block.
+
+    Full data (own player) includes tech levels, PRT, and relations.
+    Partial data (other players) only includes names and counts.
+    """
+
+    player_number: int
+    name_singular: str
+    name_plural: str
+    ship_designs: int = 0
+    planets: int = 0
+    fleets: int = 0
+    starbase_designs: int = 0
+    logo: int = 0
+    has_full_data: bool = False
+    prt: int = -1  # -1 = unknown (partial data)
+    prt_name: str = ""
+    tech_energy: int = 0
+    tech_weapons: int = 0
+    tech_propulsion: int = 0
+    tech_construction: int = 0
+    tech_electronics: int = 0
+    tech_biotech: int = 0
+    relations: list[int] = field(default_factory=list)
+
+
+@dataclass
 class GameSettings:
     """Parsed game settings from the planets block (type 7)."""
 
@@ -243,6 +288,7 @@ class GameState:
     fleets: list[Fleet] = field(default_factory=list)
     designs: list[ShipDesign] = field(default_factory=list)
     production_queues: dict[int, list[ProductionQueueItem]] = field(default_factory=dict)
+    players: list[PlayerRace] = field(default_factory=list)
 
 
 def parse_design_block(block: Block) -> ShipDesign | None:
@@ -401,6 +447,90 @@ def parse_waypoint_block(block: Block) -> Waypoint | None:
         task=task,
         task_name=task_name,
         position_object_type=position_object_type,
+    )
+
+
+def parse_player_block(block: Block) -> PlayerRace | None:
+    """Parse a type-6 player/race block.
+
+    Player block format (from starsapi PlayerBlock.java):
+      byte 0: playerNumber
+      byte 1: shipDesignCount
+      bytes 2-3: planets (10 bits)
+      bytes 4-5: fleets (10 bits) + starbaseDesignCount (bits 4-7 of byte 5)
+      byte 6: logo (bits 3-7), fullDataFlag (bit 2), bits 0-1 always 3
+      byte 7: always 1
+
+    If fullDataFlag:
+      bytes 8-0x6F: fullDataBytes (0x68 bytes of race data)
+        - bytes 18-23: tech levels (energy/weapons/prop/con/elec/bio)
+        - byte 68: PRT ID
+      byte 0x70: playerRelationsLength
+      bytes 0x71+: playerRelations (0=neutral, 1=friend, 2=enemy)
+
+    Then: Stars!-encoded singular name, Stars!-encoded plural name
+    """
+    if block.type_id != BLOCK_TYPE_PLAYER:
+        return None
+
+    data = block.data
+    player_number = data[0]
+    ship_designs = data[1]
+    planets = (data[2]) + ((data[3] & 0x03) << 8)
+    fleets = (data[4]) + ((data[5] & 0x03) << 8)
+    starbase_designs = (data[5] & 0xF0) >> 4
+    logo = (data[6] & 0xFF) >> 3
+    full_data = bool(data[6] & 0x04)
+
+    idx = 8
+    prt = -1
+    prt_name = ""
+    tech_energy = 0
+    tech_weapons = 0
+    tech_propulsion = 0
+    tech_construction = 0
+    tech_electronics = 0
+    tech_biotech = 0
+    relations: list[int] = []
+
+    if full_data:
+        fb = data[8 : 8 + 0x68]
+        tech_energy = fb[18]
+        tech_weapons = fb[19]
+        tech_propulsion = fb[20]
+        tech_construction = fb[21]
+        tech_electronics = fb[22]
+        tech_biotech = fb[23]
+        prt = fb[68]
+        prt_name = PRT_NAMES.get(prt, f"Unknown PRT {prt}")
+        idx = 0x70
+        rel_len = data[idx]
+        relations = list(data[idx + 1 : idx + 1 + rel_len])
+        idx += 1 + rel_len
+
+    name_singular, consumed_s = decode_stars_string(data, idx)
+    idx += consumed_s
+    name_plural, _ = decode_stars_string(data, idx)
+
+    return PlayerRace(
+        player_number=player_number,
+        name_singular=name_singular,
+        name_plural=name_plural,
+        ship_designs=ship_designs,
+        planets=planets,
+        fleets=fleets,
+        starbase_designs=starbase_designs,
+        logo=logo,
+        has_full_data=full_data,
+        prt=prt,
+        prt_name=prt_name,
+        tech_energy=tech_energy,
+        tech_weapons=tech_weapons,
+        tech_propulsion=tech_propulsion,
+        tech_construction=tech_construction,
+        tech_electronics=tech_electronics,
+        tech_biotech=tech_biotech,
+        relations=relations,
     )
 
 
@@ -726,5 +856,9 @@ def load_game(game_dir: str, player: int = 0) -> GameState:
                     items = parse_production_queue_block(block)
                     if items is not None:
                         state.production_queues[last_planet_id] = items
+            elif block.type_id == BLOCK_TYPE_PLAYER:
+                player = parse_player_block(block)
+                if player is not None:
+                    state.players.append(player)
 
     return state

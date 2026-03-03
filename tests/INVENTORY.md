@@ -18,8 +18,9 @@ from the autoplay repo (`../autoplay/tests/data/Game.*`).
 | test_ship_designs.py | Stars! string decoding, ShipDesign dataclass, design block parsing, real file integration | 18 |
 | test_production_queues.py | Queue item names, block parsing, real file integration | 17 |
 | test_waypoints.py | Waypoint task names, block parsing, real file integration | 16 |
+| test_player_race.py | PRT names, player block parsing, real file integration | 16 |
 
-## Total: 181 tests
+## Total: 197 tests
 
 ## Test Data
 
