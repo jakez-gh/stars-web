@@ -106,6 +106,72 @@ class TestGameStateAPI:
             assert resp.status_code == 500
 
 
+class TestChangelogAPI:
+    """Test the /api/changelog endpoint."""
+
+    def test_returns_200(self):
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            resp = client.get("/api/changelog")
+            assert resp.status_code == 200
+
+    def test_returns_json(self):
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            resp = client.get("/api/changelog")
+            assert resp.content_type.startswith("application/json")
+
+    def test_has_id_field(self):
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            data = client.get("/api/changelog").get_json()
+            assert "id" in data
+            assert data["id"]  # non-empty
+
+    def test_has_title_field(self):
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            data = client.get("/api/changelog").get_json()
+            assert "title" in data
+            assert data["title"]  # non-empty
+
+    def test_has_items_list(self):
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            data = client.get("/api/changelog").get_json()
+            assert "items" in data
+            assert isinstance(data["items"], list)
+            assert len(data["items"]) > 0
+
+    def test_returns_200_with_invalid_game_dir(self):
+        """Changelog must never 500 — it does not depend on game data."""
+        app = create_app(game_dir="/nonexistent/path")
+        with app.test_client() as client:
+            resp = client.get("/api/changelog")
+            assert resp.status_code == 200
+
+    def test_has_route(self):
+        app = create_app(game_dir=TEST_DATA_DIR)
+        rules = [r.rule for r in app.url_map.iter_rules()]
+        assert "/api/changelog" in rules
+
+
+class TestAllRoutesSmoke:
+    """Smoke test: no route should ever return 5xx with valid game data."""
+
+    ROUTES = ["/", "/api/game-state", "/api/changelog"]
+
+    def test_no_route_returns_5xx(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            for route in self.ROUTES:
+                resp = client.get(route)
+                assert (
+                    resp.status_code < 500
+                ), f"{route} returned {resp.status_code} — expected no 5xx"
+
+
 class TestIndexPage:
     """Test the star map HTML page."""
 
