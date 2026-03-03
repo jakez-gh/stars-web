@@ -8,9 +8,20 @@ All test files are from the same game: game_id=0x387B400D, v2.83.0
 
 import os
 import struct
+
 import pytest
 
 from stars_web.block_reader import read_blocks
+from stars_web.order_serializer import (
+    BLOCK_TYPE_PRODUCTION_QUEUE_CHANGE,
+    BLOCK_TYPE_WAYPOINT_ADD,
+    ProductionItem,
+    ProductionQueueOrder,
+    WaypointOrder,
+    build_order_file,
+    encode_production_queue_change_block,
+    encode_waypoint_add_block,
+)
 
 
 # Path to real game files
@@ -221,3 +232,138 @@ class TestAllFiles:
         blocks = read_blocks(data)
         for b in blocks:
             assert 0 <= b.type_id <= 63
+
+
+# ── .x1 order-file round-trip integration tests (closes #48) ─────────────────
+
+_X1_PATH = os.path.normpath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "starswine4", "backup", "Game.x1")
+)
+
+
+def _read_x1() -> bytes:
+    if not os.path.exists(_X1_PATH):
+        pytest.skip(f"Game.x1 not found at {_X1_PATH}")
+    with open(_X1_PATH, "rb") as f:
+        return f.read()
+
+
+def _order_blocks(blocks):
+    """Return only the order-type blocks (WAYPOINT_ADD, PRODUCTION_QUEUE_CHANGE)."""
+    return [
+        b
+        for b in blocks
+        if b.type_id in (BLOCK_TYPE_WAYPOINT_ADD, BLOCK_TYPE_PRODUCTION_QUEUE_CHANGE)
+    ]
+
+
+class TestX1OrderFileRoundTrip:
+    """Integration tests for the .x1 order-file encode + decode round-trip.
+
+    Closes #48.
+
+    The real Game.x1 shipped with starswine4 was host-generated before any
+    player turn was submitted, so it contains no order blocks (only a file-
+    header and two non-order encrypted blocks).  The round-trip tests
+    therefore work in two stages:
+
+    1. Confirm Game.x1 has no order blocks (correct baseline).
+    2. Build a synthetic .x1 from the real header + known orders, parse it
+       back, and assert byte-for-byte equality of the order payloads.
+    """
+
+    def _header_bytes(self) -> bytes:
+        """Return the 16-byte header content extracted from Game.x1."""
+        raw = _read_x1()
+        blocks = read_blocks(raw)
+        assert blocks[0].file_header is not None
+        return blocks[0].data
+
+    # ------------------------------------------------------------------
+    # Stage 1: real file has no order blocks
+    # ------------------------------------------------------------------
+
+    def test_real_x1_has_no_waypoint_order_blocks(self):
+        raw = _read_x1()
+        blocks = read_blocks(raw)
+        wp_blocks = [b for b in blocks if b.type_id == BLOCK_TYPE_WAYPOINT_ADD]
+        assert wp_blocks == []
+
+    def test_real_x1_has_no_production_queue_blocks(self):
+        raw = _read_x1()
+        blocks = read_blocks(raw)
+        pq_blocks = [b for b in blocks if b.type_id == BLOCK_TYPE_PRODUCTION_QUEUE_CHANGE]
+        assert pq_blocks == []
+
+    # ------------------------------------------------------------------
+    # Stage 2: synthetic encode → decode round-trip (byte-exact)
+    # ------------------------------------------------------------------
+
+    def test_waypoint_round_trip_byte_exact(self):
+        """Encode a waypoint order; decode the resulting file; bytes match."""
+        order = WaypointOrder(fleet_id=2, x=500, y=300, warp=7, task=2, obj_id=15)
+        expected_payload = encode_waypoint_add_block(order)
+
+        synthetic = build_order_file(self._header_bytes(), waypoint_orders=[order])
+        blocks = read_blocks(synthetic)
+        order_blks = _order_blocks(blocks)
+
+        assert len(order_blks) == 1
+        assert order_blks[0].type_id == BLOCK_TYPE_WAYPOINT_ADD
+        assert order_blks[0].data == expected_payload
+
+    def test_production_queue_round_trip_byte_exact(self):
+        """Encode a 2-item production queue; decode; bytes match."""
+        items = [
+            ProductionItem(item_id=8, quantity=5),  # Mine x5
+            ProductionItem(item_id=7, quantity=2),  # Factory x2
+        ]
+        order = ProductionQueueOrder(planet_id=3, items=items)
+        expected_payload = encode_production_queue_change_block(order)
+
+        synthetic = build_order_file(self._header_bytes(), production_orders=[order])
+        blocks = read_blocks(synthetic)
+        order_blks = _order_blocks(blocks)
+
+        assert len(order_blks) == 1
+        assert order_blks[0].type_id == BLOCK_TYPE_PRODUCTION_QUEUE_CHANGE
+        assert order_blks[0].data == expected_payload
+
+    def test_multiple_orders_round_trip_byte_exact(self):
+        """Two waypoints + one production queue all survive encode/decode."""
+        wp_orders = [
+            WaypointOrder(fleet_id=0, x=100, y=200, warp=5, obj_id=10),
+            WaypointOrder(fleet_id=1, x=800, y=600, warp=6, task=1, obj_id=20),
+        ]
+        pq_orders = [
+            ProductionQueueOrder(
+                planet_id=7,
+                items=[ProductionItem(item_id=9, quantity=10)],
+            )
+        ]
+
+        synthetic = build_order_file(
+            self._header_bytes(),
+            waypoint_orders=wp_orders,
+            production_orders=pq_orders,
+        )
+        blocks = read_blocks(synthetic)
+        order_blks = _order_blocks(blocks)
+
+        # Expect blocks in insertion order: wp0, wp1, pq0
+        assert len(order_blks) == 3
+        assert order_blks[0].type_id == BLOCK_TYPE_WAYPOINT_ADD
+        assert order_blks[0].data == encode_waypoint_add_block(wp_orders[0])
+        assert order_blks[1].type_id == BLOCK_TYPE_WAYPOINT_ADD
+        assert order_blks[1].data == encode_waypoint_add_block(wp_orders[1])
+        assert order_blks[2].type_id == BLOCK_TYPE_PRODUCTION_QUEUE_CHANGE
+        assert order_blks[2].data == encode_production_queue_change_block(pq_orders[0])
+
+    def test_synthetic_file_structure_header_then_orders_then_footer(self):
+        """Synthetic file must start with file-header block and end with footer."""
+        order = WaypointOrder(fleet_id=0, x=50, y=50, warp=5)
+        synthetic = build_order_file(self._header_bytes(), waypoint_orders=[order])
+        blocks = read_blocks(synthetic)
+
+        assert blocks[0].type_id == 8  # FILE_HEADER
+        assert blocks[-1].type_id == 0  # FILE_FOOTER
