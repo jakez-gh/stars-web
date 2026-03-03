@@ -205,3 +205,142 @@ class TestWaypointForm:
         page.wait_for_selector("#detail-panel:not(.hidden)", timeout=3000)
         count = page.evaluate("() => document.getElementById('wp-dest').options.length")
         assert count > 1, f"Expected >1 options in #wp-dest, got {count}"
+
+
+# ---------------------------------------------------------------------------
+# Waypoint add flow (issue #37)
+# ---------------------------------------------------------------------------
+class TestWaypointAdd:
+    """Submitting the Add Waypoint form posts to the API and updates the panel."""
+
+    def _get_fleet_screen_pos(self, page):
+        page.wait_for_function(
+            "window._gameState && window._gameState.fleets.length > 0",
+            timeout=5000,
+        )
+        return page.evaluate(
+            """() => {
+            const gs = window._gameState;
+            const canvas = document.getElementById('star-map');
+            const fleet = gs.fleets[0];
+            const viewX = window._viewX ?? 0;
+            const viewY = window._viewY ?? 0;
+            const zoom  = window._zoom ?? 1;
+            const sx = (fleet.x - viewX) * zoom + canvas.width  / 2;
+            const sy = (fleet.y - viewY) * zoom + canvas.height / 2;
+            return { x: sx, y: sy };
+        }"""
+        )
+
+    def _open_fleet_panel(self, page):
+        page.goto(BASE_URL)
+        pos = self._get_fleet_screen_pos(page)
+        page.click("#star-map", position={"x": pos["x"], "y": pos["y"]})
+        page.wait_for_selector("#detail-panel:not(.hidden)", timeout=3000)
+        # choose the first real planet from the dropdown
+        page.select_option("#wp-dest", index=1)
+        page.wait_for_function(
+            "document.getElementById('wp-x').value !== ''",
+            timeout=2000,
+        )
+
+    def test_add_waypoint_shows_toast(self, page):
+        """Clicking Add Waypoint must show a 'Waypoint added' toast."""
+        self._open_fleet_panel(page)
+        page.click("#wp-add-btn")
+        page.wait_for_selector("#toast.visible", timeout=5000)
+        assert page.text_content("#toast") == "Waypoint added"
+
+    def test_add_waypoint_updates_waypoints(self, page):
+        """After the API call succeeds, fleet.waypoints must grow by one."""
+        page.goto(BASE_URL)
+        pos = self._get_fleet_screen_pos(page)
+        page.click("#star-map", position={"x": pos["x"], "y": pos["y"]})
+        page.wait_for_selector("#detail-panel:not(.hidden)", timeout=3000)
+
+        initial = page.evaluate("() => (window._gameState.fleets[0].waypoints || []).length")
+
+        page.select_option("#wp-dest", index=1)
+        page.wait_for_function(
+            "document.getElementById('wp-x').value !== ''",
+            timeout=2000,
+        )
+        page.click("#wp-add-btn")
+        page.wait_for_function(
+            f"(window._gameState.fleets[0].waypoints || []).length > {initial}",
+            timeout=5000,
+        )
+        final = page.evaluate("() => (window._gameState.fleets[0].waypoints || []).length")
+        assert final == initial + 1
+
+
+# ---------------------------------------------------------------------------
+# Planet production queue add flow (issue #44)
+# ---------------------------------------------------------------------------
+class TestProductionQueueAdd:
+    """Add to Queue form on the planet panel posts to the API and updates the queue."""
+
+    def _get_owned_planet_pos(self, page):
+        page.wait_for_function(
+            "window._gameState && window._gameState.planets.some(p => p.owner >= 0)",
+            timeout=5000,
+        )
+        return page.evaluate(
+            """() => {
+            const gs = window._gameState;
+            const canvas = document.getElementById('star-map');
+            const planet = gs.planets.find(p => p.owner >= 0);
+            const viewX = window._viewX ?? 0;
+            const viewY = window._viewY ?? 0;
+            const zoom  = window._zoom ?? 1;
+            const sx = (planet.x - viewX) * zoom + canvas.width  / 2;
+            const sy = (planet.y - viewY) * zoom + canvas.height / 2;
+            return { x: sx, y: sy };
+        }"""
+        )
+
+    def _open_planet_panel(self, page):
+        page.goto(BASE_URL)
+        pos = self._get_owned_planet_pos(page)
+        page.click("#star-map", position={"x": pos["x"], "y": pos["y"]})
+        page.wait_for_selector("#detail-panel:not(.hidden)", timeout=3000)
+
+    def test_owned_planet_has_add_to_queue_form(self, page):
+        """Clicking an owned planet must reveal the Add to Queue form."""
+        self._open_planet_panel(page)
+        assert page.query_selector("#q-item") is not None, "#q-item select missing"
+        assert page.query_selector("#q-add-btn") is not None, "#q-add-btn missing"
+
+    def test_add_to_queue_shows_toast(self, page):
+        """Clicking Add in the queue form must show an 'Added to queue' toast."""
+        self._open_planet_panel(page)
+        page.wait_for_selector("#q-add-btn", timeout=3000)
+        page.fill("#q-count", "3")
+        page.click("#q-add-btn")
+        page.wait_for_selector("#toast.visible", timeout=5000)
+        assert page.text_content("#toast") == "Added to queue"
+
+    def test_add_to_queue_updates_planet(self, page):
+        """After the API call, the planet's production_queue must grow by one."""
+        page.goto(BASE_URL)
+        pos = self._get_owned_planet_pos(page)
+
+        planet_id = page.evaluate("() => window._gameState.planets.find(p => p.owner >= 0).id")
+
+        page.click("#star-map", position={"x": pos["x"], "y": pos["y"]})
+        page.wait_for_selector("#q-add-btn", timeout=3000)
+
+        initial = page.evaluate(
+            f"() => (window._gameState.planets.find(p => p.id === {planet_id}).production_queue || []).length"
+        )
+
+        page.fill("#q-count", "2")
+        page.click("#q-add-btn")
+        page.wait_for_function(
+            f"(window._gameState.planets.find(p => p.id === {planet_id}).production_queue || []).length > {initial}",
+            timeout=5000,
+        )
+        final = page.evaluate(
+            f"() => (window._gameState.planets.find(p => p.id === {planet_id}).production_queue || []).length"
+        )
+        assert final == initial + 1
