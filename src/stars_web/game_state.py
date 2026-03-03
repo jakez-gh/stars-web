@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 
 from stars_web.block_reader import read_blocks, Block
 from stars_web.planet_names import get_planet_name
+from stars_web.stars_string import decode_stars_string
 
 
 # Universe size labels by ID
@@ -21,6 +22,50 @@ DENSITY_LABELS = {0: "Sparse", 1: "Normal", 2: "Dense", 3: "Packed"}
 
 # Starting distance labels by ID
 STARTING_DISTANCES = {0: "Close", 1: "Moderate", 2: "Farther", 3: "Distant"}
+
+# Hull names by ID (0-31 = ships, 32-36 = starbases)
+HULL_NAMES = {
+    0: "Small Freighter",
+    1: "Medium Freighter",
+    2: "Large Freighter",
+    3: "Super Freighter",
+    4: "Scout",
+    5: "Frigate",
+    6: "Destroyer",
+    7: "Cruiser",
+    8: "Battle Cruiser",
+    9: "Battleship",
+    10: "Dreadnought",
+    11: "Privateer",
+    12: "Rogue",
+    13: "Galleon",
+    14: "Mini Colony Ship",
+    15: "Colony Ship",
+    16: "Mini Bomber",
+    17: "B-17 Bomber",
+    18: "Stealth Bomber",
+    19: "B-52 Bomber",
+    20: "Midget Miner",
+    21: "Mini Miner",
+    22: "Miner",
+    23: "Maxi Miner",
+    24: "Ultra Miner",
+    25: "Fuel Transport",
+    26: "Super Fuel Xport",
+    27: "Mini Mine Layer",
+    28: "Super Mine Layer",
+    29: "Nubian",
+    30: "Mini Morph",
+    31: "Meta Morph",
+    32: "Orbital Fort",
+    33: "Space Dock",
+    34: "Space Station",
+    35: "Ultra Station",
+    36: "Death Star",
+}
+
+# Block type constant for ship/starbase designs
+BLOCK_TYPE_DESIGN = 26
 
 
 @dataclass
@@ -65,6 +110,29 @@ class Fleet:
 
 
 @dataclass
+class ShipDesign:
+    """A ship or starbase design.
+
+    Full designs include armor, slots, and build stats.
+    Partial designs (other players' ships) only have mass.
+    """
+
+    design_number: int
+    is_starbase: bool
+    hull_id: int
+    hull_name: str
+    name: str
+    armor: int = 0
+    mass: int = 0
+    slot_count: int = 0
+    slots: list[tuple[int, int, int]] = field(default_factory=list)
+    is_full_design: bool = True
+    turn_designed: int = 0
+    total_built: int = 0
+    total_remaining: int = 0
+
+
+@dataclass
 class GameSettings:
     """Parsed game settings from the planets block (type 7)."""
 
@@ -100,6 +168,87 @@ class GameState:
     settings: GameSettings = field(default_factory=GameSettings)
     planets: list[Planet] = field(default_factory=list)
     fleets: list[Fleet] = field(default_factory=list)
+    designs: list[ShipDesign] = field(default_factory=list)
+
+
+def parse_design_block(block: Block) -> ShipDesign | None:
+    """Parse a type-26 ship/starbase design block.
+
+    Design block format (from starsapi DesignBlock.java):
+      byte 0: flags — 0x07=full design, 0x03=partial
+      byte 1: (designNumber << 2) | 0x01, bit 6=isStarbase
+      byte 2: hullId (0-31 ships, 32-36 starbases)
+      byte 3: pic
+
+    Full design (flag bit 2 set):
+      bytes 4-5:  armor (u16 LE)
+      byte  6:    slotCount
+      bytes 7-8:  turnDesigned (u16 LE)
+      bytes 9-12: totalBuilt (u32 LE)
+      bytes 13-16: totalRemaining (u32 LE)
+      bytes 17+:  slots (4 bytes each: category u16 + itemId u8 + count u8)
+      then:       Stars!-encoded name
+
+    Partial design (other players' ships):
+      bytes 4-5: mass (u16 LE)
+      bytes 6+:  Stars!-encoded name
+    """
+    if block.type_id != BLOCK_TYPE_DESIGN:
+        return None
+
+    data = block.data
+    byte0 = data[0]
+    byte1 = data[1]
+    hull_id = data[2]
+
+    is_full_design = bool(byte0 & 0x04)
+    design_number = (byte1 >> 2) & 0x0F
+    is_starbase = bool(byte1 & 0x40)
+    hull_name = HULL_NAMES.get(hull_id, f"Unknown Hull {hull_id}")
+
+    if is_full_design:
+        armor = struct.unpack_from("<H", data, 4)[0]
+        slot_count = data[6]
+        turn_designed = struct.unpack_from("<H", data, 7)[0]
+        total_built = struct.unpack_from("<I", data, 9)[0]
+        total_remaining = struct.unpack_from("<I", data, 13)[0]
+
+        slots: list[tuple[int, int, int]] = []
+        slot_offset = 17
+        for _ in range(slot_count):
+            cat = struct.unpack_from("<H", data, slot_offset)[0]
+            item_id = data[slot_offset + 2]
+            count = data[slot_offset + 3]
+            slots.append((cat, item_id, count))
+            slot_offset += 4
+
+        name, _ = decode_stars_string(data, slot_offset)
+        mass = 0
+    else:
+        mass = struct.unpack_from("<H", data, 4)[0]
+        armor = 0
+        slot_count = 0
+        slots = []
+        turn_designed = 0
+        total_built = 0
+        total_remaining = 0
+        name, _ = decode_stars_string(data, 6)
+
+    return ShipDesign(
+        design_number=design_number,
+        is_starbase=is_starbase,
+        hull_id=hull_id,
+        hull_name=hull_name,
+        name=name,
+        armor=armor,
+        mass=mass,
+        slot_count=slot_count,
+        slots=slots,
+        is_full_design=is_full_design,
+        turn_designed=turn_designed,
+        total_built=total_built,
+        total_remaining=total_remaining,
+    )
 
 
 def _parse_planets_from_xy(blocks: list[Block]) -> tuple[list[Planet], GameSettings]:
@@ -395,5 +544,9 @@ def load_game(game_dir: str, player: int = 0) -> GameState:
                 fleet = _parse_fleet_block(block)
                 if fleet is not None:
                     state.fleets.append(fleet)
+            elif block.type_id == BLOCK_TYPE_DESIGN:
+                design = parse_design_block(block)
+                if design is not None:
+                    state.designs.append(design)
 
     return state
