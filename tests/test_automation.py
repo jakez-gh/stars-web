@@ -416,3 +416,242 @@ class TestInputSendInputMocked:
         # move + left-down + left-up = 3 _INPUT structs
         assert len(sent) == 3
         assert all(s.type == inp_mod._INPUT_MOUSE for s in sent)
+
+
+# ===========================================================================
+# Navigator
+# ===========================================================================
+
+
+class TestNavigatorHotkeys:
+    """Navigator maps StarScreen values to the correct VK codes."""
+
+    def test_all_screens_have_hotkeys(self) -> None:
+        from stars_web.automation.navigator import StarScreen, _SCREEN_HOTKEYS
+
+        for screen in StarScreen:
+            assert screen in _SCREEN_HOTKEYS, f"{screen} has no hotkey registered"
+
+    def test_planets_is_f1(self) -> None:
+        from stars_web.automation.input import Input
+        from stars_web.automation.navigator import StarScreen, _SCREEN_HOTKEYS
+
+        assert _SCREEN_HOTKEYS[StarScreen.PLANETS] == Input.VK_F1
+
+    def test_fleets_is_f2(self) -> None:
+        from stars_web.automation.input import Input
+        from stars_web.automation.navigator import StarScreen, _SCREEN_HOTKEYS
+
+        assert _SCREEN_HOTKEYS[StarScreen.FLEETS] == Input.VK_F2
+
+    def test_scanner_is_f3(self) -> None:
+        from stars_web.automation.input import Input
+        from stars_web.automation.navigator import StarScreen, _SCREEN_HOTKEYS
+
+        assert _SCREEN_HOTKEYS[StarScreen.SCANNER] == Input.VK_F3
+
+    def test_race_is_f10(self) -> None:
+        from stars_web.automation.input import Input
+        from stars_web.automation.navigator import StarScreen, _SCREEN_HOTKEYS
+
+        assert _SCREEN_HOTKEYS[StarScreen.RACE] == Input.VK_F10
+
+
+class TestNavigatorGo:
+    """Navigator.go() calls Input.key with the right vk and invokes verify_fn."""
+
+    def _make_nav(self, verify_fn=None):
+        from stars_web.automation.navigator import Navigator
+        from stars_web.automation.window import StarsWindow
+
+        win = StarsWindow(hwnd=1)
+        return Navigator(win, settle_delay=0, verify_fn=verify_fn)
+
+    def test_go_calls_focus_and_key(self) -> None:
+        if sys.platform != "win32":
+            pytest.skip("Windows only")
+
+        from stars_web.automation.input import Input
+        from stars_web.automation.navigator import StarScreen
+
+        nav = self._make_nav()
+        with (
+            mock.patch.object(nav.win, "focus") as mock_focus,
+            mock.patch.object(Input, "key") as mock_key,
+            mock.patch("time.sleep"),
+        ):
+            nav.go(StarScreen.PLANETS)
+
+        mock_focus.assert_called_once()
+        mock_key.assert_called_once_with(Input.VK_F1)
+
+    def test_go_raises_on_verification_failure(self) -> None:
+        if sys.platform != "win32":
+            pytest.skip("Windows only")
+
+        from stars_web.automation.input import Input
+        from stars_web.automation.navigator import StarScreen
+
+        nav = self._make_nav(verify_fn=lambda win, screen: False)
+        with (
+            mock.patch.object(nav.win, "focus"),
+            mock.patch.object(Input, "key"),
+            mock.patch("time.sleep"),
+            pytest.raises(RuntimeError, match="verification failed"),
+        ):
+            nav.go(StarScreen.SCANNER)
+
+    def test_go_succeeds_when_verify_returns_true(self) -> None:
+        if sys.platform != "win32":
+            pytest.skip("Windows only")
+
+        from stars_web.automation.input import Input
+        from stars_web.automation.navigator import StarScreen
+
+        nav = self._make_nav(verify_fn=lambda win, screen: True)
+        with (
+            mock.patch.object(nav.win, "focus"),
+            mock.patch.object(Input, "key"),
+            mock.patch("time.sleep"),
+        ):
+            nav.go(StarScreen.FLEETS)  # should not raise
+
+
+# ===========================================================================
+# Matcher
+# ===========================================================================
+
+
+class TestMatcherPixelHelpers:
+    """Matcher pixel helpers work on synthetic images."""
+
+    def _solid(self, color: tuple, size: tuple = (100, 100)):
+        from PIL import Image
+
+        img = Image.new("RGB", size, color=color)
+        return img
+
+    def test_pixel_at(self) -> None:
+        from stars_web.automation.matcher import Matcher
+
+        img = self._solid((255, 0, 128))
+        assert Matcher.pixel_at(img, 0, 0) == (255, 0, 128)
+
+    def test_pixel_matches_exact(self) -> None:
+        from stars_web.automation.matcher import Matcher
+
+        img = self._solid((10, 20, 30))
+        assert Matcher.pixel_matches(img, 0, 0, (10, 20, 30), tolerance=0)
+
+    def test_pixel_matches_within_tolerance(self) -> None:
+        from stars_web.automation.matcher import Matcher
+
+        img = self._solid((10, 20, 30))
+        assert Matcher.pixel_matches(img, 0, 0, (15, 25, 35), tolerance=5)
+
+    def test_pixel_not_matches_outside_tolerance(self) -> None:
+        from stars_web.automation.matcher import Matcher
+
+        img = self._solid((0, 0, 0))
+        assert not Matcher.pixel_matches(img, 0, 0, (50, 50, 50), tolerance=10)
+
+    def test_list_templates_returns_list(self) -> None:
+        from stars_web.automation.matcher import Matcher
+
+        result = Matcher.list_templates()
+        assert isinstance(result, list)
+
+
+class TestMatcherFind:
+    """Matcher.find() returns a MatchResult for a perfect-match template."""
+
+    def test_find_exact_match(self) -> None:
+        from PIL import Image
+
+        from stars_web.automation.matcher import Matcher
+
+        # Create a 60×60 screenshot with a distinctive 10×10 pattern at (20, 15)
+        screenshot = Image.new("RGB", (60, 60), color=(100, 100, 100))
+        # Draw a checkerboard template at that position (not flat — avoids NCC degenerate case)
+        for y in range(10):
+            for x in range(10):
+                c = 255 if (x + y) % 2 == 0 else 0
+                screenshot.putpixel((20 + x, 15 + y), (c, c, c))
+
+        # Template is the same 10×10 checkerboard
+        template = Image.new("RGB", (10, 10))
+        for y in range(10):
+            for x in range(10):
+                c = 255 if (x + y) % 2 == 0 else 0
+                template.putpixel((x, y), (c, c, c))
+
+        result = Matcher.find(screenshot, template, threshold=0.90)
+        assert result is not None
+        assert result.x == 20
+        assert result.y == 15
+        assert result.score > 0.90
+
+    def test_find_returns_none_when_no_match(self) -> None:
+        from PIL import Image
+
+        from stars_web.automation.matcher import Matcher
+
+        # Black screenshot, white template — no match above threshold
+        screenshot = Image.new("RGB", (50, 50), color=(100, 100, 100))
+        template = Image.new("RGB", (10, 10), color=(255, 255, 255))
+
+        result = Matcher.find(screenshot, template, threshold=0.99)
+        assert result is None
+
+    def test_find_returns_none_when_template_larger_than_screenshot(self) -> None:
+        from PIL import Image
+
+        from stars_web.automation.matcher import Matcher
+
+        screenshot = Image.new("RGB", (10, 10), color=(0, 0, 0))
+        template = Image.new("RGB", (20, 20), color=(255, 255, 255))
+
+        result = Matcher.find(screenshot, template)
+        assert result is None
+
+
+# ===========================================================================
+# CrossVerifier
+# ===========================================================================
+
+
+class TestCrossVerifierReport:
+    """VerificationReport helpers."""
+
+    def test_ok_with_no_mismatches(self) -> None:
+        from stars_web.automation.cross_verify import VerificationReport
+
+        report = VerificationReport(checks_run=3)
+        assert report.ok() is True
+
+    def test_not_ok_with_mismatches(self) -> None:
+        from stars_web.automation.cross_verify import Mismatch, VerificationReport
+
+        report = VerificationReport(
+            mismatches=[Mismatch("Planet X", "pop", 100, 200)],
+            checks_run=1,
+        )
+        assert report.ok() is False
+
+    def test_summary_ok(self) -> None:
+        from stars_web.automation.cross_verify import VerificationReport
+
+        report = VerificationReport(checks_run=5)
+        assert "OK" in report.summary()
+        assert "5" in report.summary()
+
+    def test_summary_with_mismatches(self) -> None:
+        from stars_web.automation.cross_verify import Mismatch, VerificationReport
+
+        report = VerificationReport(
+            mismatches=[Mismatch("Planet Y", "shields", 0, 10)],
+            checks_run=2,
+        )
+        s = report.summary()
+        assert "Planet Y" in s
+        assert "shields" in s
