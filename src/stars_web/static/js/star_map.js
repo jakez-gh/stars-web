@@ -127,14 +127,14 @@
     function worldToScreen(wx, wy) {
         return {
             x: (wx - viewX) * zoom + canvas.width / 2,
-            y: (wy - viewY) * zoom + canvas.height / 2,
+            y: -(wy - viewY) * zoom + canvas.height / 2,
         };
     }
 
     function screenToWorld(sx, sy) {
         return {
             x: (sx - canvas.width / 2) / zoom + viewX,
-            y: (sy - canvas.height / 2) / zoom + viewY,
+            y: -(sy - canvas.height / 2) / zoom + viewY,
         };
     }
 
@@ -170,7 +170,10 @@
 
         const gridStep = 100;
         const startX = Math.floor(topLeft.x / gridStep) * gridStep;
-        const startY = Math.floor(topLeft.y / gridStep) * gridStep;
+        // After Y-inversion topLeft.y > bottomRight.y, so clamp both ends
+        const minWorldY = Math.min(topLeft.y, bottomRight.y);
+        const maxWorldY = Math.max(topLeft.y, bottomRight.y);
+        const startY = Math.floor(minWorldY / gridStep) * gridStep;
 
         ctx.beginPath();
         for (let gx = startX; gx <= bottomRight.x; gx += gridStep) {
@@ -178,7 +181,7 @@
             ctx.moveTo(sx, 0);
             ctx.lineTo(sx, canvas.height);
         }
-        for (let gy = startY; gy <= bottomRight.y; gy += gridStep) {
+        for (let gy = startY; gy <= maxWorldY; gy += gridStep) {
             const sy = worldToScreen(0, gy).y;
             ctx.moveTo(0, sy);
             ctx.lineTo(canvas.width, sy);
