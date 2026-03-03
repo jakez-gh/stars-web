@@ -494,4 +494,48 @@
     }
 
     loadGameState();
+
+    // --- Changelog modal ---
+    const CHANGELOG_POLL_MS = 5000;
+    const SEEN_KEY = "seen_changelog_id";
+
+    async function fetchChangelog() {
+        try {
+            const resp = await fetch("/api/changelog");
+            if (!resp.ok) return;
+            const data = await resp.json();
+            const lastSeen = localStorage.getItem(SEEN_KEY);
+            if (data.id && data.id !== lastSeen) {
+                showChangelogModal(data);
+                await loadGameState();
+            }
+        } catch (err) {
+            console.warn("Changelog poll error:", err);
+        }
+    }
+
+    function showChangelogModal(data) {
+        const modal = document.getElementById("changelog-modal");
+        const title = document.getElementById("changelog-title");
+        const list = document.getElementById("changelog-list");
+        const btn = document.getElementById("changelog-dismiss");
+
+        title.textContent = data.title || "What\u2019s New";
+        list.innerHTML = "";
+        (data.items || []).forEach(function (item) {
+            const li = document.createElement("li");
+            li.textContent = item;
+            list.appendChild(li);
+        });
+
+        modal.classList.remove("hidden");
+
+        btn.onclick = function () {
+            localStorage.setItem(SEEN_KEY, data.id);
+            modal.classList.add("hidden");
+        };
+    }
+
+    fetchChangelog();
+    setInterval(fetchChangelog, CHANGELOG_POLL_MS);
 })();

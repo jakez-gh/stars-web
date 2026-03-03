@@ -4,6 +4,7 @@ Serves a star map UI that visualizes parsed game state from
 Stars! binary save files.
 """
 
+import json
 import os
 
 from flask import Flask, jsonify, render_template
@@ -36,10 +37,21 @@ def create_app(game_dir: str | None = None) -> Flask:
 
     app.config["GAME_DIR"] = os.path.abspath(game_dir)
 
+    _changelog_path = os.path.join(os.path.dirname(__file__), "changelog.json")
+
     @app.route("/")
     def index():
         """Serve the star map page."""
         return render_template("star_map.html")
+
+    @app.route("/api/changelog")
+    def api_changelog():
+        """Return current changelog entry so the UI can show a 'what's new' modal."""
+        try:
+            with open(_changelog_path, encoding="utf-8") as f:
+                return jsonify(json.load(f))
+        except Exception as e:
+            return jsonify({"id": "unknown", "title": "Changelog unavailable", "items": [str(e)]})
 
     @app.route("/api/game-state")
     def api_game_state():
