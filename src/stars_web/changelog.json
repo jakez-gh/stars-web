@@ -1,16 +1,16 @@
 {
-  "id": "2026-03-02-001",
-  "title": "Project Planning & GitHub Hygiene",
+  "id": "2026-03-02-002",
+  "title": "Changelog Modal + GitHub Actions CI",
   "items": [
-    "Broke down M2 waypoints epic (#9) into 5 atomic sub-issues (#33–#37) with DoD and layer labels",
-    "Broke down M2 production queue epic (#10) into 6 atomic sub-issues (#39–#44) with DoD and layer labels",
-    "Broke down M3 .x1 serializer epic (#11) into 4 atomic sub-issues (#45–#48) with DoD and layer labels",
-    "Broke down M3 turn loop epic (#12) into 5 atomic sub-issues (#49–#53) with DoD and layer labels",
-    "Created 7 layer labels: layer:ui, layer:api, layer:test, layer:binary, layer:docs, layer:state, blocked",
-    "Applied layer labels to all 24 issues so parallel-safe tasks are identifiable at a glance",
-    "Wired 'Blocked by / Blocks' dependency chains into every sub-issue body",
-    "Marked MA0–MA3 milestones as [SECONDARY], M2–M3 as [PRIMARY] in milestone descriptions",
-    "Added all 20 new sub-issues to GitHub Project board #1 (48 items total)",
-    "Added live changelog modal: refreshes game state and shows this summary on each deploy"
+    "Added /api/changelog endpoint to serve what's-new data from changelog.json",
+    "Added changelog modal overlay to star map UI — appears automatically on each new deploy",
+    "Modal polls every 5 seconds; compares entry id vs localStorage to detect new deploys",
+    "On new entry: game state reloads + modal shown; dismiss persists seen id to localStorage",
+    "Dark-themed modal card matches existing space UI (gold title, blue dismiss button)",
+    "Added .github/workflows/ci.yml — runs pre-commit + pytest on every push and PR",
+    "Broke down M2/M3 epics into 21 atomic sub-issues (#33–#53) with layer labels and DoD",
+    "Created 7 layer labels (layer:ui, layer:api, layer:test, etc.) for parallel-safe planning",
+    "Wired Blocked-by/Blocks chains in all sub-issue bodies; 17 issues marked blocked",
+    "Added all issues to GitHub Project board #1 (48 items total)"
   ]
 }
