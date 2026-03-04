@@ -12,6 +12,17 @@ from dataclasses import dataclass, field
 from stars_web.block_reader import read_blocks, Block
 from stars_web.planet_names import get_planet_name
 from stars_web.stars_string import decode_stars_string
+from stars_web.binary.turn_message import (
+    TurnMessage,
+    decode_message,
+)
+from stars_web.binary.game_object import (
+    decode_objects,
+)
+from stars_web.binary.event import (
+    Event,
+    decode_events,
+)
 
 
 # Universe size labels by ID
@@ -89,6 +100,15 @@ WAYPOINT_TASKS = {
 
 # Block type constant for player/race data
 BLOCK_TYPE_PLAYER = 6
+
+# Block type constant for messages
+BLOCK_TYPE_MESSAGE = 24
+
+# Block type constant for objects
+BLOCK_TYPE_OBJECT = 25
+
+# Block type constant for events
+BLOCK_TYPE_EVENT = 12
 
 # Primary Racial Trait names by ID
 PRT_NAMES = {
@@ -289,6 +309,9 @@ class GameState:
     designs: list[ShipDesign] = field(default_factory=list)
     production_queues: dict[int, list[ProductionQueueItem]] = field(default_factory=dict)
     players: list[PlayerRace] = field(default_factory=list)
+    messages: list[TurnMessage] = field(default_factory=list)
+    objects: list = field(default_factory=list)  # Minefield, Wormhole, Salvage, Packet
+    events: list[Event] = field(default_factory=list)
 
 
 def parse_design_block(block: Block) -> ShipDesign | None:
@@ -857,6 +880,21 @@ def load_game(game_dir: str, player: int = 0) -> GameState:
                     items = parse_production_queue_block(block)
                     if items is not None:
                         state.production_queues[last_planet_id] = items
+            elif block.type_id == BLOCK_TYPE_MESSAGE:
+                msg = decode_message(block.data)
+                if msg is not None:
+                    state.messages.append(msg)
+            elif block.type_id == BLOCK_TYPE_OBJECT:
+                objs = decode_objects(block.data)
+                if objs is not None:
+                    state.objects.extend(objs)
+            elif block.type_id == BLOCK_TYPE_EVENT:
+                try:
+                    evts = decode_events(block.data)
+                    if evts:
+                        state.events.extend(evts)
+                except (ValueError, struct.error):
+                    pass  # Event format not fully decoded; skip gracefully
             elif block.type_id == BLOCK_TYPE_PLAYER:
                 player = parse_player_block(block)
                 if player is not None:
