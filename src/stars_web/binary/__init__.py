@@ -7,6 +7,13 @@ from stars_web.binary.battle_plan import (
     decode_battle_plan,
     decode_battle_plans,
 )
+from stars_web.binary.file_footer import (
+    FileFooter,
+    BLOCK_TYPE_FILE_FOOTER,
+    FILE_FOOTER_SIZE,
+    STARS_BASE_YEAR,
+    decode_file_footer,
+)
 from stars_web.binary.fleet import (
     FleetDetail,
     BLOCK_TYPE_FLEET_FULL,
@@ -57,6 +64,13 @@ from stars_web.binary.event import (
     decode_events,
     encode_events,
 )
+from stars_web.binary.waypoint_task import (
+    WaypointTask,
+    BLOCK_TYPE_WAYPOINT_TASK,
+    WAYPOINT_TASK_SIZE,
+    decode_waypoint_task,
+    decode_waypoint_tasks,
+)
 
 __all__ = [
     "BattlePlan",
@@ -64,6 +78,11 @@ __all__ = [
     "BATTLE_PLAN_SLOT_COUNT",
     "decode_battle_plan",
     "decode_battle_plans",
+    "FileFooter",
+    "BLOCK_TYPE_FILE_FOOTER",
+    "FILE_FOOTER_SIZE",
+    "STARS_BASE_YEAR",
+    "decode_file_footer",
     "FleetDetail",
     "BLOCK_TYPE_FLEET_FULL",
     "BLOCK_TYPE_FLEET_PARTIAL",
@@ -102,4 +121,9 @@ __all__ = [
     "BLOCK_TYPE_EVENT",
     "decode_events",
     "encode_events",
+    "WaypointTask",
+    "BLOCK_TYPE_WAYPOINT_TASK",
+    "WAYPOINT_TASK_SIZE",
+    "decode_waypoint_task",
+    "decode_waypoint_tasks",
 ]
