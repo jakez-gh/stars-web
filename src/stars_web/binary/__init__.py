@@ -1,5 +1,15 @@
 """Binary parsing modules for Stars! file formats."""
 
+from stars_web.binary.fleet import (
+    FleetDetail,
+    BLOCK_TYPE_FLEET_FULL,
+    BLOCK_TYPE_FLEET_PARTIAL,
+    FLEET_KIND_WRITE,
+    FLEET_KIND_CARGO,
+    FLEET_KIND_FULL,
+    decode_fleet,
+    decode_fleets,
+)
 from stars_web.binary.planet import (
     PlanetDetail,
     BLOCK_TYPE_PLANET_FULL,
@@ -34,6 +44,14 @@ from stars_web.binary.event import (
 )
 
 __all__ = [
+    "FleetDetail",
+    "BLOCK_TYPE_FLEET_FULL",
+    "BLOCK_TYPE_FLEET_PARTIAL",
+    "FLEET_KIND_WRITE",
+    "FLEET_KIND_CARGO",
+    "FLEET_KIND_FULL",
+    "decode_fleet",
+    "decode_fleets",
     "PlanetDetail",
     "BLOCK_TYPE_PLANET_FULL",
     "BLOCK_TYPE_PLANET_PARTIAL",
