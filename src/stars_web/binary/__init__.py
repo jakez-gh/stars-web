@@ -18,6 +18,14 @@ from stars_web.binary.planet import (
     decode_planet,
     decode_planets,
 )
+from stars_web.binary.player_scores import (
+    PlayerScore,
+    BLOCK_TYPE_PLAYER_SCORES,
+    PLAYER_SCORES_BLOCK_SIZE,
+    PLAYER_RAW_OFFSET,
+    decode_player_score,
+    decode_player_scores,
+)
 from stars_web.binary.turn_message import (
     TurnMessage,
     BLOCK_TYPE_MESSAGE,
@@ -58,6 +66,12 @@ __all__ = [
     "OWNER_UNOWNED",
     "decode_planet",
     "decode_planets",
+    "PlayerScore",
+    "BLOCK_TYPE_PLAYER_SCORES",
+    "PLAYER_SCORES_BLOCK_SIZE",
+    "PLAYER_RAW_OFFSET",
+    "decode_player_score",
+    "decode_player_scores",
     "TurnMessage",
     "BLOCK_TYPE_MESSAGE",
     "MESSAGE_ACTION_CODES",
