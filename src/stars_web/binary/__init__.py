@@ -1,5 +1,12 @@
 """Binary parsing modules for Stars! file formats."""
 
+from stars_web.binary.battle_plan import (
+    BattlePlan,
+    BLOCK_TYPE_BATTLE_PLAN,
+    BATTLE_PLAN_SLOT_COUNT,
+    decode_battle_plan,
+    decode_battle_plans,
+)
 from stars_web.binary.fleet import (
     FleetDetail,
     BLOCK_TYPE_FLEET_FULL,
@@ -52,6 +59,11 @@ from stars_web.binary.event import (
 )
 
 __all__ = [
+    "BattlePlan",
+    "BLOCK_TYPE_BATTLE_PLAN",
+    "BATTLE_PLAN_SLOT_COUNT",
+    "decode_battle_plan",
+    "decode_battle_plans",
     "FleetDetail",
     "BLOCK_TYPE_FLEET_FULL",
     "BLOCK_TYPE_FLEET_PARTIAL",
