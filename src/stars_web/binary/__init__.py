@@ -109,6 +109,13 @@ from stars_web.binary.design_block import (
     decode_design_block,
     decode_designs,
 )
+from stars_web.binary.battle_record import (
+    BattleToken,
+    BattleRecord,
+    BLOCK_TYPE_BATTLE,
+    decode_battle_block,
+    decode_battles,
+)
 
 __all__ = [
     "BattlePlan",
@@ -192,4 +199,9 @@ __all__ = [
     "BLOCK_TYPE_DESIGN",
     "decode_design_block",
     "decode_designs",
+    "BattleToken",
+    "BattleRecord",
+    "BLOCK_TYPE_BATTLE",
+    "decode_battle_block",
+    "decode_battles",
 ]

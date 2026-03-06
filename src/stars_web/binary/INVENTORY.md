@@ -21,7 +21,7 @@ Each module handles one or more block type IDs and is independent of `game_state
 | 45 | player_scores.py | `PlayerScore` | 14 (fixed) | ✅ complete |
 | EOF | file_footer.py | `FileFooter` | 6 (fixed) | ✅ complete |
 | 26 | design_block.py | `DesignSlot`, `PartialDesign`, `FullDesign` | 13–78 | ✅ complete |
-| **31** | *(pending)* | BattleCombatLog | 144–611 | ❌ not started |
+| **31** | battle_record.py | `BattleToken`, `BattleRecord` | 144–611 | ✅ complete |
 
 ## Files
 
@@ -41,6 +41,7 @@ Each module handles one or more block type IDs and is independent of `game_state
 | `ship_design.py` | 43 | Decodes ship designs: count record (2 B) or design record (18 B) |
 | `turn_message.py` | 24 | Decodes in-game turn messages: text + action code |
 | `design_block.py` | 26 | Decodes ship/starbase designs: partial sighting (mass+name) vs full record (armor, slots, build history) |
+| `battle_record.py` | 31 | Decodes battle combat logs: header, fleet-stack tokens (24 B each), raw event log |
 
 ## Design Conventions
 
@@ -59,6 +60,7 @@ Machine-readable file list for quality gate verification.
 - INVENTORY.md
 - __init__.py
 - battle_plan.py
+- battle_record.py
 - design_block.py
 - event.py
 - file_footer.py

@@ -1,6 +1,6 @@
 # INVENTORY — tests/
 
-pytest test suite for the stars_web library (1027 collected, 1024 passing).
+pytest test suite for the stars_web library (1140 collected, 1137 passing).
 Game-data smoke tests use `../starswine4/` and `../../autoplay/tests/data/`.
 
 ## Files
@@ -13,6 +13,7 @@ Game-data smoke tests use `../starswine4/` and `../../autoplay/tests/data/`.
 | `test_app.py` | app.py (Flask factory, routes, API) | 49 |
 | `test_automation.py` | automation/ (input, window, navigator, matcher) | 61 |
 | `test_battle_plan.py` | binary/battle_plan.py (Type 30) | 46 |
+| `test_battle_record.py` | binary/battle_record.py (Type 31 — BattleToken, BattleRecord) | 50 |
 | `test_binary_player_race.py` | binary/player_race.py (Type 6) | 52 |
 | `test_block_reader.py` | block_reader.py (envelope, decryption) | 9 |
 | `test_decryptor.py` | decryptor.py (seeds, XOR) | 13 |
@@ -46,9 +47,9 @@ Game-data smoke tests use `../starswine4/` and `../../autoplay/tests/data/`.
 
 *test_e2e.py: 29 tests collected but all deselected/skipped without full game environment.
 
-## Total: 1090 collected (1087 passing, 3 skipped)
+## Total: 1140 collected (1137 passing, 3 skipped)
 
-## Coverage: 83.81% (as of last full run)
+## Coverage: 83.82% (as of last full run)
 
 ## Test Data
 
