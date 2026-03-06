@@ -28,6 +28,24 @@ jobs:
       - name: Run unit tests
         run: python -m pytest --tb=short -q -m "not e2e"
 
+      - name: Enforce minimum coverage (50%)
+        run: |
+          COVERAGE=$(python -c "import json; import pathlib; cov_file=pathlib.Path('coverage.xml'); print(int(float(cov_file.read_text().split('line-rate=\"')[1].split('\"')[0])*100) if cov_file.exists() else 0)")
+          if [ "$COVERAGE" -lt 50 ]; then echo "Coverage $COVERAGE% below minimum 50%"; exit 1; fi
+
+      - name: Test module imports
+        run: |
+          python -c "from stars_web.port_manager import *; print('✓ port_manager')"
+          python -c "from stars_web.web_builder import *; print('✓ web_builder')"
+          python -c "from stars_web.lifecycle import *; print('✓ lifecycle')"
+          python -c "from stars_web.status import *; print('✓ status')"
+
+      - name: Validate test structure
+        run: |
+          TESTS=$(find tests -name "test_*.py" | wc -l)
+          if [ "$TESTS" -eq 0 ]; then echo "No tests found!"; exit 1; fi
+          echo "✓ Found $TESTS test files"
+
       - name: Install Playwright browsers
         run: playwright install chromium --with-deps
 
@@ -39,3 +57,18 @@ jobs:
 
       - name: Run E2E tests
         run: python -m pytest --tb=short -q -m e2e
+
+      - name: Build web assets on success
+        if: success()
+        run: |
+          export PYTHONPATH=src
+          python -c "from stars_web.web_builder import build_web_assets; build_web_assets()"
+
+      - name: Commit updated web assets
+        if: success()
+        run: |
+          git config user.name "CI Pipeline"
+          git config user.email "ci@stars.local"
+          git add src/stars_web/static/ src/stars_web/templates/
+          git diff --cached --exit-code || git commit -m "chore: update web assets after successful CI run"
+          git push origin HEAD:${{ github.ref }} || true

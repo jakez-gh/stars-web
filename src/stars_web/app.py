@@ -6,10 +6,28 @@ Stars! binary save files.
 
 import json
 import os
+from pathlib import Path
 
 from flask import Flask, jsonify, render_template, request
 
 from stars_web.game_state import load_game
+
+
+def _load_cache_manifest() -> dict[str, str]:
+    """Load cache-buster hashes from the manifest file.
+
+    Returns a dict mapping asset names to their SHA256 hashes.
+    If the manifest doesn't exist, returns empty dict (no cache-busting).
+    """
+    manifest_path = Path(__file__).parent / "static" / "._cache_manifest.json"
+    try:
+        if manifest_path.exists():
+            with open(manifest_path) as f:
+                data = json.load(f)
+                return data.get("hashes", {})
+    except Exception:
+        pass
+    return {}
 
 
 def create_app(game_dir: str | None = None) -> Flask:
@@ -39,13 +57,18 @@ def create_app(game_dir: str | None = None) -> Flask:
     # In-memory pending orders (not yet written to .x1)
     app.config["PENDING_WAYPOINTS"] = {}  # fleet_id -> [{x, y, warp, task}]
     app.config["PENDING_PRODUCTION"] = {}  # planet_id -> [{name, quantity}]
+    # Cache-buster hashes for web assets
+    app.config["CACHE_HASHES"] = _load_cache_manifest()
 
     _changelog_path = os.path.join(os.path.dirname(__file__), "changelog.json")
 
     @app.route("/")
     def index():
         """Serve the star map page."""
-        return render_template("star_map.html")
+        return render_template(
+            "star_map.html",
+            cache_hashes=app.config["CACHE_HASHES"],
+        )
 
     @app.route("/api/changelog")
     def api_changelog():

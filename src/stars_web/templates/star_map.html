@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stars! — Star Map</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/star_map.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/star_map.css') }}{% if cache_hashes.star_map_css %}?v={{ cache_hashes.star_map_css }}{% endif %}">
 </head>
 <body>
     <div id="app">
@@ -50,6 +50,6 @@
             <button id="changelog-dismiss">Got it</button>
         </div>
     </div>
-    <script src="{{ url_for('static', filename='js/star_map.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/star_map.js') }}{% if cache_hashes.star_map_js %}?v={{ cache_hashes.star_map_js }}{% endif %}"></script>
 </body>
 </html>

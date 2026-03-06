@@ -8,5 +8,9 @@ build/
 .eggs/
 htmlcov/
 .coverage
+coverage.xml
 .vscode/
 docs/tmp/
+.hypothesis/
+src/stars_web/static/._build_manifest.json
+src/stars_web/static/._cache_manifest.json
