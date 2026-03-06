@@ -1,0 +1,15 @@
+#!/bin/sh
+# pre-commit hook — managed by repository
+# This portable version uses `pre-commit` from PATH.
+# For a machine-pinned version, run: pre-commit install
+# (that will overwrite this file with a version bound to your local Python)
+HERE="$(cd "$(dirname "$0")" && pwd)"
+ARGS=(hook-impl --config=.pre-commit-config.yaml --hook-type=pre-commit --hook-dir "$HERE" -- "$@")
+
+if command -v pre-commit > /dev/null; then
+    exec pre-commit "${ARGS[@]}"
+else
+    echo '`pre-commit` not found.  Did you forget to activate your virtualenv?' 1>&2
+    echo 'Run: pip install pre-commit && pre-commit install' 1>&2
+    exit 1
+fi
