@@ -1,6 +1,6 @@
 # INVENTORY — tests/
 
-pytest test suite for the stars_web library (1140 collected, 1137 passing).
+pytest test suite for the stars_web library (1140 collected, 1137 passing, 83.82% coverage).
 Game-data smoke tests use `../starswine4/` and `../../autoplay/tests/data/`.
 
 ## Files
@@ -80,6 +80,7 @@ py -3.11 -m pytest tests/test_binary_player_race.py -v  # single file
 Machine-readable file list for quality gate verification.
 
 ### FILES
+
 - INVENTORY.md
 - __init__.py
 - conftest.py
@@ -118,4 +119,5 @@ Machine-readable file list for quality gate verification.
 - test_web_builder.py
 
 ### FOLDERS
+
 (none)

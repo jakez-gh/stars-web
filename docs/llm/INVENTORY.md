@@ -1,8 +1,9 @@
-# docs/llm/ Inventory
+# docs/llm/ — LLM Navigation Aids
 
 ## Purpose
 
-LLM agent artifacts — onboarding docs, task plans, session context.
+Structured documentation for language models working on this project.
+Onboarding docs, task plans, agent context to assist Claude and related tools.
 Per core-rules: agent-generated artifacts go here, not in the prompts folder.
 
 ## Contents
@@ -28,6 +29,7 @@ They are NOT production documentation. For current module status, see
 ## MANIFEST
 
 ### FILES
+
 - INVENTORY.md
 - onboarding.md
 - PORT_MANAGEMENT_GUIDE.md
@@ -39,4 +41,5 @@ They are NOT production documentation. For current module status, see
 - WORK_SUMMARY_TURNMESSAGE.md
 
 ### FOLDERS
+
 (none)

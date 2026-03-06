@@ -1,6 +1,6 @@
 # INVENTORY — docs/
 
-Documentation for the stars_web project.
+Project documentation, guides, and format specifications for developers and LLM agents.
 
 ## Files
 
@@ -22,11 +22,13 @@ Documentation for the stars_web project.
 ## MANIFEST
 
 ### FILES
+
 - INVENTORY.md
 - DEPENDENCIES.md
 - file-format-discovery.md
 - x1-order-file-format.md
 
 ### FOLDERS
+
 - images/
 - llm/

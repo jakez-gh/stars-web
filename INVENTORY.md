@@ -1,7 +1,7 @@
 # INVENTORY — stars_web (repo root)
 
 Web-based Stars! 4X game client that reads/writes the same binary save files
-as the original Stars! fat client (v2.6/2.7).
+as the original Stars! fat client (v2.6/2.7). Project last updated: 2026-03-06.
 
 ## Files
 
@@ -39,12 +39,14 @@ as the original Stars! fat client (v2.6/2.7).
 ## MANIFEST
 
 ### FILES
+
 - INVENTORY.md
 - pyproject.toml
 - .gitignore
 - .gitattributes
 
 ### FOLDERS
+
 - src/
 - tests/
 - docs/

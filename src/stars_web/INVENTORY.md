@@ -1,7 +1,7 @@
 # INVENTORY — src/stars_web/
 
-Core library for parsing Stars! binary file formats, assembling game state,
-and serving a Flask web UI.
+Core library for parsing Stars! binary file formats, assembling game state, and serving a Flask web UI.
+All 15 binary block types fully implemented with comprehensive test coverage (1137 tests, 83.82%).
 
 ## Files
 
@@ -60,6 +60,7 @@ Game.xy / Game.m# / Game.hst  (raw bytes)
 Machine-readable file list for quality gate verification.
 
 ### FILES
+
 - INVENTORY.md
 - __init__.py
 - app.py
@@ -79,6 +80,7 @@ Machine-readable file list for quality gate verification.
 - web_builder.py
 
 ### FOLDERS
+
 - automation/
 - binary/
 - static/

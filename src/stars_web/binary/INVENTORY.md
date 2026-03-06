@@ -1,6 +1,6 @@
 # INVENTORY — src/stars_web/binary/
 
-Standalone binary block decoders for Stars! file format block types.
+Standalone binary block decoders for Stars! file format block types (15 types complete).
 Each module handles one or more block type IDs and is independent of `game_state.py`.
 
 ## Block Type → Module Map
@@ -57,8 +57,9 @@ Each module handles one or more block type IDs and is independent of `game_state
 Machine-readable file list for quality gate verification.
 
 ### FILES
+
 - INVENTORY.md
-- __init__.py
+- **init**.py
 - battle_plan.py
 - battle_record.py
 - design_block.py
@@ -76,4 +77,5 @@ Machine-readable file list for quality gate verification.
 - waypoint_task.py
 
 ### FOLDERS
+
 (none)
