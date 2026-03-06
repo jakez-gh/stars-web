@@ -94,6 +94,13 @@ from stars_web.binary.ship_design import (
     decode_ship_design_block,
     decode_ship_designs,
 )
+from stars_web.binary.player_race import (
+    PlayerCompact,
+    PlayerRaceData,
+    HAB_IMMUNE,
+    decode_player_race_block,
+    decode_player_races,
+)
 
 __all__ = [
     "BattlePlan",
@@ -166,4 +173,9 @@ __all__ = [
     "ShipDesignCount",
     "decode_ship_design_block",
     "decode_ship_designs",
+    "PlayerCompact",
+    "PlayerRaceData",
+    "HAB_IMMUNE",
+    "decode_player_race_block",
+    "decode_player_races",
 ]
