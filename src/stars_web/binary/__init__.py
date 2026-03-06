@@ -101,6 +101,14 @@ from stars_web.binary.player_race import (
     decode_player_race_block,
     decode_player_races,
 )
+from stars_web.binary.design_block import (
+    DesignSlot,
+    PartialDesign,
+    FullDesign,
+    BLOCK_TYPE_DESIGN,
+    decode_design_block,
+    decode_designs,
+)
 
 __all__ = [
     "BattlePlan",
@@ -178,4 +186,10 @@ __all__ = [
     "HAB_IMMUNE",
     "decode_player_race_block",
     "decode_player_races",
+    "DesignSlot",
+    "PartialDesign",
+    "FullDesign",
+    "BLOCK_TYPE_DESIGN",
+    "decode_design_block",
+    "decode_designs",
 ]

@@ -16,6 +16,7 @@ Game-data smoke tests use `../starswine4/` and `../../autoplay/tests/data/`.
 | `test_binary_player_race.py` | binary/player_race.py (Type 6) | 52 |
 | `test_block_reader.py` | block_reader.py (envelope, decryption) | 9 |
 | `test_decryptor.py` | decryptor.py (seeds, XOR) | 13 |
+| `test_design_block.py` | binary/design_block.py (Type 26 — PartialDesign, FullDesign, DesignSlot) | 63 |
 | `test_e2e.py` | End-to-end game flow (all skipped unless full env) | 0* |
 | `test_event.py` | binary/event.py (Type 12) | 24 |
 | `test_file_footer.py` | binary/file_footer.py (EOF block) | 22 |
@@ -45,9 +46,9 @@ Game-data smoke tests use `../starswine4/` and `../../autoplay/tests/data/`.
 
 *test_e2e.py: 29 tests collected but all deselected/skipped without full game environment.
 
-## Total: 1027 collected (1024 passing, 3 skipped)
+## Total: 1090 collected (1087 passing, 3 skipped)
 
-## Coverage: 82.86% (as of last full run)
+## Coverage: 83.81% (as of last full run)
 
 ## Test Data
 
@@ -87,6 +88,7 @@ Machine-readable file list for quality gate verification.
 - test_binary_player_race.py
 - test_block_reader.py
 - test_decryptor.py
+- test_design_block.py
 - test_e2e.py
 - test_event.py
 - test_file_footer.py

@@ -20,7 +20,7 @@ Each module handles one or more block type IDs and is independent of `game_state
 | 43 | ship_design.py | `ShipDesign`, `ShipDesignCount` | 2 or 18 | ✅ complete |
 | 45 | player_scores.py | `PlayerScore` | 14 (fixed) | ✅ complete |
 | EOF | file_footer.py | `FileFooter` | 6 (fixed) | ✅ complete |
-| **26** | *(pending)* | FleetDetail variable-length | 13–78 | ❌ not started |
+| 26 | design_block.py | `DesignSlot`, `PartialDesign`, `FullDesign` | 13–78 | ✅ complete |
 | **31** | *(pending)* | BattleCombatLog | 144–611 | ❌ not started |
 
 ## Files
@@ -40,7 +40,7 @@ Each module handles one or more block type IDs and is independent of `game_state
 | `production_queue.py` | 28 | Decodes planet production queues: ordered list of build items |
 | `ship_design.py` | 43 | Decodes ship designs: count record (2 B) or design record (18 B) |
 | `turn_message.py` | 24 | Decodes in-game turn messages: text + action code |
-| `waypoint_task.py` | 19 | Decodes waypoint tasks: destinations, fuel, cargo orders |
+| `design_block.py` | 26 | Decodes ship/starbase designs: partial sighting (mass+name) vs full record (armor, slots, build history) |
 
 ## Design Conventions
 
@@ -59,6 +59,7 @@ Machine-readable file list for quality gate verification.
 - INVENTORY.md
 - __init__.py
 - battle_plan.py
+- design_block.py
 - event.py
 - file_footer.py
 - fleet.py
