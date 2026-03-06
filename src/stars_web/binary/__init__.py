@@ -64,6 +64,23 @@ from stars_web.binary.event import (
     decode_events,
     encode_events,
 )
+from stars_web.binary.fleet_order import (
+    FleetOrder,
+    BLOCK_TYPE_FLEET_ORDER,
+    FLEET_ORDER_SIZE,
+    ORDER_TYPE_TARGETED,
+    ORDER_TYPE_OPEN_SPACE,
+    decode_fleet_order,
+    decode_fleet_orders,
+)
+from stars_web.binary.production_queue import (
+    ProductionItem,
+    ProductionQueue,
+    BLOCK_TYPE_PRODUCTION_QUEUE,
+    PRODUCTION_ITEM_SIZE,
+    decode_production_queue,
+    decode_production_queues,
+)
 from stars_web.binary.waypoint_task import (
     WaypointTask,
     BLOCK_TYPE_WAYPOINT_TASK,
@@ -126,4 +143,17 @@ __all__ = [
     "WAYPOINT_TASK_SIZE",
     "decode_waypoint_task",
     "decode_waypoint_tasks",
+    "FleetOrder",
+    "BLOCK_TYPE_FLEET_ORDER",
+    "FLEET_ORDER_SIZE",
+    "ORDER_TYPE_TARGETED",
+    "ORDER_TYPE_OPEN_SPACE",
+    "decode_fleet_order",
+    "decode_fleet_orders",
+    "ProductionItem",
+    "ProductionQueue",
+    "BLOCK_TYPE_PRODUCTION_QUEUE",
+    "PRODUCTION_ITEM_SIZE",
+    "decode_production_queue",
+    "decode_production_queues",
 ]
