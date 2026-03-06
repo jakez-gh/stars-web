@@ -88,6 +88,12 @@ from stars_web.binary.waypoint_task import (
     decode_waypoint_task,
     decode_waypoint_tasks,
 )
+from stars_web.binary.ship_design import (
+    ShipDesign,
+    ShipDesignCount,
+    decode_ship_design_block,
+    decode_ship_designs,
+)
 
 __all__ = [
     "BattlePlan",
@@ -156,4 +162,8 @@ __all__ = [
     "PRODUCTION_ITEM_SIZE",
     "decode_production_queue",
     "decode_production_queues",
+    "ShipDesign",
+    "ShipDesignCount",
+    "decode_ship_design_block",
+    "decode_ship_designs",
 ]
