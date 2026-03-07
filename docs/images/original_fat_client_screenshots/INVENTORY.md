@@ -38,3 +38,31 @@ Copies of the game files at the point when screenshots were taken (turn 1).
 Screenshots are from turn 2 (year 2402). Game data files are from turn 1
 (year 2401). Values differ due to one turn of game mechanics (growth, mining,
 building).
+
+## MANIFEST
+
+### FILES
+
+- INVENTORY.md
+- Game.h1
+- Game.h2
+- Game.hst
+- Game.m1
+- Game.m2
+- Game.xy
+- fat_client_mineral_view.png
+- fat_client_percent_view.png
+- game_parameters_1_of_3.png
+- game_parameters_2_of_3.png
+- game_parameters_3_of_3.png
+- planet_summary_report.png
+- race_page_1_of_6.png
+- race_page_2_of_6.png
+- race_page_3_of_6.png
+- race_page_4_of_6.png
+- race_page_5_of_6.png
+- race_page_6_of_6.png
+
+### FOLDERS
+
+(none)

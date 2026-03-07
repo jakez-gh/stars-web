@@ -39,6 +39,17 @@ repos:
       - id: mixed-line-ending
         args: [--fix=lf]
 
+  # Inventory documentation quality gate
+  - repo: local
+    hooks:
+      - id: check-inventory
+        name: inventory quality gate (MANIFEST sections match filesystem)
+        entry: py -3.11 tools/check_inventory.py
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [commit]
+
   # Run pytest as a local quality gate
   - repo: local
     hooks:

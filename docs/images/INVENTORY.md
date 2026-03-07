@@ -1,11 +1,25 @@
-# docs/images/ Inventory
+# INVENTORY — docs/images/
 
-## Purpose
+Image assets for documentation and cross-verification of parser output against the Stars! fat client.
 
-Image assets for documentation and cross-verification.
+## Files
 
-## Contents
+| File | Description |
+| ---- | ----------- |
+| `INVENTORY.md` | This file |
 
-| Folder                           | Purpose                                   |
-| -------------------------------- | ----------------------------------------- |
-| original_fat_client_screenshots/ | Reference screenshots from Stars! v2.70   |
+## Folders
+
+| Folder | Description |
+| ------ | ----------- |
+| `original_fat_client_screenshots/` | Reference screenshots from Stars! v2.70 used to validate planet/fleet/UI parsers |
+
+## MANIFEST
+
+### FILES
+
+- INVENTORY.md
+
+### FOLDERS
+
+- original_fat_client_screenshots/

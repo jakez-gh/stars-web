@@ -59,7 +59,7 @@ Machine-readable file list for quality gate verification.
 ### FILES
 
 - INVENTORY.md
-- **init**.py
+- __init__.py
 - battle_plan.py
 - battle_record.py
 - design_block.py

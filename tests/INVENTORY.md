@@ -87,6 +87,7 @@ Machine-readable file list for quality gate verification.
 - test_app.py
 - test_automation.py
 - test_battle_plan.py
+- test_battle_record.py
 - test_binary_player_race.py
 - test_block_reader.py
 - test_decryptor.py
