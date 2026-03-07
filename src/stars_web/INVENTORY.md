@@ -1,7 +1,7 @@
 # INVENTORY — src/stars_web/
 
 Core library for parsing Stars! binary file formats, assembling game state, and serving a Flask web UI.
-All 15 binary block types fully implemented with comprehensive test coverage (1137 tests, 83.82%).
+All 15 binary block types fully implemented with comprehensive test coverage (1191 tests, 84.39%).
 
 ## Files
 
@@ -16,7 +16,11 @@ All 15 binary block types fully implemented with comprehensive test coverage (11
 | `stars_string.py` | Decodes Stars! custom nibble-based text encoding used in design names |
 | `game_state.py` | High-level loader: assembles GameState from .xy/.m#/.hst. Parses types 6/7/13/14/16/17/20/26/28/31/45; exposes battles and player_scores fields |
 | `order_serializer.py` | Serializes player orders back to binary format for writing .m# files |
-| `app.py` | Flask application factory — 15 routes: index, changelog, game-state, planet/fleet/players/score/designs/battles/minefields/messages (GET) + research/waypoints/production/submit-turn (POST) + sidecar persistence helpers |
+| `app.py` | Flask application factory — 15 routes: index, changelog, game-state, planet/fleet/players/score/designs/battles/minefields/messages (GET) + research/waypoints/production/submit-turn (POST). Delegates I/O to `pending_orders`, serialization to `serializers`, and turn submission to `turn_service` |
+| `domain_constants.py` | Framework-free domain constants: `RESEARCH_FIELDS` frozenset, `WAYPOINT_TASKS` int→name mapping |
+| `pending_orders.py` | Sidecar persistence (`.orders_pending.json`): `load_pending_orders`, `save_pending_orders`, `delete_sidecar` — zero Flask dependency |
+| `serializers.py` | Pure domain→dict serializer functions for all API-facing objects (Planet, Fleet, ShipDesign, PlayerRace, PlayerScore, BattleRecord, Minefield, TurnMessage) |
+| `turn_service.py` | Submit-turn logic extracted from app.py: `detect_game_files`, `read_x1_turn`, `build_and_write_orders`, `run_host` — zero Flask dependency |
 | `run.py` | Entry-point: launches the Flask dev server with configured host/port |
 | `lifecycle.py` | Manages Stars! game process lifecycle (start, stop, detect running) |
 | `port_manager.py` | Deterministic port allocation using game ID hash to avoid collisions |
@@ -67,16 +71,20 @@ Machine-readable file list for quality gate verification.
 - block_reader.py
 - changelog.json
 - decryptor.py
+- domain_constants.py
 - file_header.py
 - game_state.py
 - lifecycle.py
 - order_serializer.py
+- pending_orders.py
 - planet_names.py
 - port_manager.py
 - run.py
+- serializers.py
 - stars_random.py
 - stars_string.py
 - status.py
+- turn_service.py
 - web_builder.py
 
 ### FOLDERS

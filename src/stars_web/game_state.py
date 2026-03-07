@@ -92,19 +92,9 @@ BLOCK_TYPE_PRODUCTION_QUEUE = 28
 # Block type constant for waypoints
 BLOCK_TYPE_WAYPOINT = 20
 
-# Waypoint task names by ID
-WAYPOINT_TASKS = {
-    0: "None",
-    1: "Transport",
-    2: "Colonize",
-    3: "Remote Mining",
-    4: "Merge with Fleet",
-    5: "Scrap Fleet",
-    6: "Lay Mine Field",
-    7: "Patrol",
-    8: "Route",
-    9: "Transfer",
-}
+# Waypoint task names by ID — canonical definition lives in domain_constants;
+# re-exported here for backward compatibility.
+from stars_web.domain_constants import WAYPOINT_TASKS  # noqa: E402
 
 # Block type constant for player/race data
 BLOCK_TYPE_PLAYER = 6

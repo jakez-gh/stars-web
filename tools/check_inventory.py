@@ -35,6 +35,12 @@ import os
 import sys
 from pathlib import Path
 
+# Ensure Unicode emoji characters (✅ ❌ ⚠️) print correctly on Windows
+# consoles that default to CP-1252.
+if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 
 # ── Items to ignore when scanning actual directory contents ──────────────────
 
@@ -81,6 +87,7 @@ def should_ignore(name: str) -> bool:
 
 
 # ── MANIFEST parser ────────────────────────────────────────────────────────────
+
 
 def parse_manifest(inventory_path: Path) -> tuple[set[str], set[str]] | None:
     """
@@ -151,6 +158,7 @@ def parse_manifest(inventory_path: Path) -> tuple[set[str], set[str]] | None:
 
 # ── Directory scanner ─────────────────────────────────────────────────────────
 
+
 def get_actual_items(directory: Path) -> tuple[set[str], set[str]]:
     """Return (files, folders) actually present in *directory* (one level only)."""
     files: set[str] = set()
@@ -168,6 +176,7 @@ def get_actual_items(directory: Path) -> tuple[set[str], set[str]]:
 
 
 # ── Checker ────────────────────────────────────────────────────────────────────
+
 
 def check_directory(inventory_path: Path) -> list[str]:
     """
@@ -204,6 +213,7 @@ def check_directory(inventory_path: Path) -> list[str]:
 
 
 # ── Main ───────────────────────────────────────────────────────────────────────
+
 
 def find_inventory_files(root: Path) -> list[Path]:
     """Recursively find all INVENTORY.md files under *root*, skipping ignored dirs."""
@@ -258,13 +268,17 @@ def main(argv: list[str] | None = None) -> int:
         print()
 
     if errors:
-        print(f"❌  FAILED — {len(errors)} error(s), {len(warnings)} warning(s) "
-              f"across {checked} checked / {skipped} skipped (no MANIFEST)")
+        print(
+            f"❌  FAILED — {len(errors)} error(s), {len(warnings)} warning(s) "
+            f"across {checked} checked / {skipped} skipped (no MANIFEST)"
+        )
         return 1
 
-    print(f"✅  PASSED — {checked} INVENTORY.md files verified"
-          + (f", {len(warnings)} warning(s)" if warnings else "")
-          + (f", {skipped} without MANIFEST section (skipped)" if skipped else ""))
+    print(
+        f"✅  PASSED — {checked} INVENTORY.md files verified"
+        + (f", {len(warnings)} warning(s)" if warnings else "")
+        + (f", {skipped} without MANIFEST section (skipped)" if skipped else "")
+    )
     return 0
 
 

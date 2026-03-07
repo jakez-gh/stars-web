@@ -181,7 +181,11 @@ def _isolate_sidecar(request, monkeypatch):
     if request.node.get_closest_marker("uses_sidecar"):
         return  # Real sidecar I/O for sidecar-specific tests
 
-    import stars_web.app as app_mod
+    import stars_web.pending_orders as po_mod
 
-    monkeypatch.setattr(app_mod, "_save_pending_orders", lambda _app: None)
-    monkeypatch.setattr(app_mod, "_load_pending_orders", lambda _app: None)
+    monkeypatch.setattr(po_mod, "save_pending_orders", lambda *a, **kw: None)
+    monkeypatch.setattr(
+        po_mod,
+        "load_pending_orders",
+        lambda *a: {"waypoints": {}, "production": {}, "research": {}},
+    )
