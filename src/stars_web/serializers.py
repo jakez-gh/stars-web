@@ -219,4 +219,11 @@ def serialize_minefield(obj: "Minefield") -> dict:
 
 def serialize_message(m: "TurnMessage") -> dict:
     """Serialize a TurnMessage."""
-    return {"action_code": m.action_code, "text": m.text}
+    return {
+        "message_id": m.message_id,
+        "source_player": m.source_player,
+        "dest_player": m.dest_player,
+        "year": m.year,
+        "action_code": m.action_code,
+        "text": m.text,
+    }

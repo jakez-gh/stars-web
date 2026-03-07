@@ -32,6 +32,7 @@
     // --- State ---
     let gameState = null;
     let prevTurn = null;  // track turn changes for "Turn N loaded" banner
+    let messagesList = [];
     let selectedPlanet = null;
     let hoveredPlanet = null;
     let selectedFleet = null;
@@ -73,6 +74,13 @@
     const hostLogTitle = document.getElementById("host-log-title");
     const hostLogBody = document.getElementById("host-log-body");
     const hostLogClose = document.getElementById("host-log-close");
+    const inboxPanel      = document.getElementById("inbox-panel");
+    const inboxList       = document.getElementById("inbox-list");
+    const inboxClose      = document.getElementById("inbox-close");
+    const inboxBtn        = document.getElementById("inbox-btn");
+    const inboxCount      = document.getElementById("inbox-count");
+    const inboxFilterType = document.getElementById("inbox-filter-type");
+    const inboxSearch     = document.getElementById("inbox-search");
 
     // Tooltip element
     const tooltip = document.createElement("div");
@@ -102,6 +110,22 @@
     hostLogClose.addEventListener("click", () => {
         hostLogPanel.classList.add("hidden");
     });
+
+    inboxBtn.addEventListener("click", () => {
+        if (inboxPanel.classList.contains("hidden")) {
+            renderInbox();
+            inboxPanel.classList.remove("hidden");
+        } else {
+            inboxPanel.classList.add("hidden");
+        }
+    });
+
+    inboxClose.addEventListener("click", () => {
+        inboxPanel.classList.add("hidden");
+    });
+
+    inboxFilterType.addEventListener("change", renderInbox);
+    inboxSearch.addEventListener("input", renderInbox);
 
     submitTurnBtn.addEventListener("click", async () => {
         const origText = submitTurnBtn.textContent;
@@ -801,6 +825,106 @@
 
     window.addEventListener("resize", resize);
 
+    // --- Inbox ---
+
+    const ACTION_CODE_LABELS = {
+        0: "Unknown",
+        1: "Standard",
+    };
+
+    function getActionLabel(code) {
+        return ACTION_CODE_LABELS[code] || `Type ${code}`;
+    }
+
+    function escapeHtml(str) {
+        return str
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+    }
+
+    function populateInboxFilter() {
+        const codes = [...new Set(messagesList.map(m => m.action_code))].sort((a, b) => a - b);
+        // Remove all non-"All" options and repopulate
+        while (inboxFilterType.options.length > 1) {
+            inboxFilterType.remove(1);
+        }
+        codes.forEach(code => {
+            const opt = document.createElement("option");
+            opt.value = String(code);
+            opt.textContent = getActionLabel(code);
+            inboxFilterType.appendChild(opt);
+        });
+    }
+
+    function renderInbox() {
+        const filterCode = inboxFilterType.value;
+        const query = inboxSearch.value.trim().toLowerCase();
+
+        const filtered = messagesList.filter(m => {
+            if (filterCode !== "" && String(m.action_code) !== filterCode) return false;
+            if (query && !m.text.toLowerCase().includes(query)) return false;
+            return true;
+        });
+
+        if (filtered.length === 0) {
+            inboxList.innerHTML = `<div class="inbox-empty">No messages${(filterCode || query) ? " matching filter" : ""}.</div>`;
+            return;
+        }
+
+        inboxList.innerHTML = filtered.map((m, i) => {
+            const sender = m.source_player >= 0 ? `Player ${m.source_player + 1}` : "System";
+            const year   = m.year > 500 ? m.year : 2400 + m.year;
+            const type   = getActionLabel(m.action_code);
+            const preview = m.text.length > 120 ? m.text.slice(0, 120) + "\u2026" : m.text;
+            return `
+                <div class="inbox-msg" data-idx="${i}">
+                    <div class="inbox-msg-meta">
+                        <span class="inbox-year">${year}</span>
+                        <span class="inbox-type-tag">${escapeHtml(type)}</span>
+                        <span class="inbox-sender">${escapeHtml(sender)}</span>
+                    </div>
+                    <div class="inbox-msg-text">${escapeHtml(preview)}</div>
+                </div>`;
+        }).join("");
+
+        inboxList.querySelectorAll(".inbox-msg").forEach((el, i) => {
+            el.addEventListener("click", () => {
+                const msg = filtered[i];
+                if (el.classList.contains("expanded")) {
+                    el.classList.remove("expanded");
+                    const preview = msg.text.length > 120 ? msg.text.slice(0, 120) + "\u2026" : msg.text;
+                    el.querySelector(".inbox-msg-text").textContent = preview;
+                } else {
+                    el.classList.add("expanded");
+                    el.querySelector(".inbox-msg-text").innerHTML = escapeHtml(msg.text).replace(/\n/g, "<br>");
+                }
+            });
+        });
+    }
+
+    async function loadMessages() {
+        try {
+            const resp = await fetch("/api/messages");
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            messagesList = await resp.json();
+            if (messagesList.length > 0) {
+                inboxCount.textContent = messagesList.length;
+                inboxCount.classList.remove("hidden");
+            } else {
+                inboxCount.classList.add("hidden");
+            }
+            populateInboxFilter();
+            if (!inboxPanel.classList.contains("hidden")) {
+                renderInbox();
+            }
+        } catch (err) {
+            console.warn("Failed to load messages:", err);
+        }
+    }
+
     // --- Init ---
 
     function centerOnPlanets() {
@@ -851,6 +975,7 @@
 
             resize();
             centerOnPlanets();
+            await loadMessages();
             render();
         } catch (err) {
             gameTitle.textContent = "Connection Error";

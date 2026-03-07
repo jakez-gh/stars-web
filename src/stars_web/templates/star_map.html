@@ -24,6 +24,7 @@
                     </select>
                 </label>
                 <button id="submit-turn-btn" disabled>Submit Turn</button>
+                <button id="inbox-btn">Inbox <span id="inbox-count" class="inbox-count-badge hidden"></span></button>
             </div>
         </header>
         <div id="map-container">
@@ -33,6 +34,19 @@
             <button id="close-detail">&times;</button>
             <h2 id="detail-name"></h2>
             <div id="detail-body"></div>
+        </aside>
+        <aside id="inbox-panel" class="hidden">
+            <div id="inbox-header">
+                <span id="inbox-title">Inbox</span>
+                <div id="inbox-filters">
+                    <select id="inbox-filter-type" title="Filter by type">
+                        <option value="">All Types</option>
+                    </select>
+                    <input type="search" id="inbox-search" placeholder="Search…" autocomplete="off">
+                </div>
+                <button id="inbox-close" title="Close">&times;</button>
+            </div>
+            <div id="inbox-list"></div>
         </aside>
         <div id="host-log-panel" class="hidden">
             <div id="host-log-header">
