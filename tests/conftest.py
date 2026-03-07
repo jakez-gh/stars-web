@@ -157,3 +157,31 @@ def production_item_factory():
 def production_queue_factory():
     """Fixture providing ProductionQueueOrderFactory."""
     return ProductionQueueOrderFactory
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Sidecar isolation
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@pytest.fixture(autouse=True)
+def _isolate_sidecar(request, monkeypatch):
+    """Stub sidecar read/write for all tests except those marked 'uses_sidecar'.
+
+    Tests running in parallel with pytest-xdist share ``TEST_DATA_DIR``.
+    Without this fixture, mutation tests (POST waypoints / production / research)
+    write ``.orders_pending.json`` into that directory.  When a concurrent worker
+    then calls ``create_app(TEST_DATA_DIR)``, ``_load_pending_orders`` reads the
+    sidecar and populates the pending dicts, causing spurious "has_pending_orders
+    is True" assertions in tests that expect a clean state.
+
+    Tests that explicitly verify sidecar on-disk behaviour must opt in with
+    ``@pytest.mark.uses_sidecar``.
+    """
+    if request.node.get_closest_marker("uses_sidecar"):
+        return  # Real sidecar I/O for sidecar-specific tests
+
+    import stars_web.app as app_mod
+
+    monkeypatch.setattr(app_mod, "_save_pending_orders", lambda _app: None)
+    monkeypatch.setattr(app_mod, "_load_pending_orders", lambda _app: None)

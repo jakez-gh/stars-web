@@ -41,6 +41,7 @@ addopts = [
 markers = [
     "e2e: end-to-end browser tests (require playwright install chromium)",
     "slow: slow integration tests",
+    "uses_sidecar: test exercises real .orders_pending.json read/write (opt out of sidecar stub)",
 ]
 
 [tool.coverage.run]

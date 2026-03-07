@@ -16,7 +16,7 @@ All 15 binary block types fully implemented with comprehensive test coverage (11
 | `stars_string.py` | Decodes Stars! custom nibble-based text encoding used in design names |
 | `game_state.py` | High-level loader: assembles GameState from .xy/.m#/.hst. Parses types 6/7/13/14/16/17/20/26/28/31/45; exposes battles and player_scores fields |
 | `order_serializer.py` | Serializes player orders back to binary format for writing .m# files |
-| `app.py` | Flask application factory — 14 routes: index, changelog, game-state, planet/fleet/players/score/designs/battles/minefields/messages (GET) + waypoints/production/submit-turn (POST) |
+| `app.py` | Flask application factory — 15 routes: index, changelog, game-state, planet/fleet/players/score/designs/battles/minefields/messages (GET) + research/waypoints/production/submit-turn (POST) + sidecar persistence helpers |
 | `run.py` | Entry-point: launches the Flask dev server with configured host/port |
 | `lifecycle.py` | Manages Stars! game process lifecycle (start, stop, detect running) |
 | `port_manager.py` | Deterministic port allocation using game ID hash to avoid collisions |

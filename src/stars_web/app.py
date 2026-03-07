@@ -12,6 +12,73 @@ from flask import Flask, jsonify, render_template, request
 
 from stars_web.game_state import load_game
 
+# Valid research fields accepted by POST /api/research
+_RESEARCH_FIELDS = frozenset(
+    {"energy", "weapons", "propulsion", "construction", "electronics", "biotechnology"}
+)
+
+
+def _sidecar_path(game_dir: str) -> str:
+    """Return absolute path for the pending-orders JSON sidecar file."""
+    return os.path.join(game_dir, ".orders_pending.json")
+
+
+def _load_pending_orders(app: Flask) -> None:
+    """Populate in-memory pending dicts from sidecar file (if present).
+
+    Called once at startup so orders survive a server restart.
+    Silently ignores missing or malformed files.
+    """
+    path = _sidecar_path(app.config["GAME_DIR"])
+    try:
+        if os.path.exists(path):
+            with open(path, encoding="utf-8") as f:
+                data = json.load(f)
+            # JSON keys are strings; convert fleet/planet ids back to int
+            waypoints = data.get("waypoints", {})
+            app.config["PENDING_WAYPOINTS"] = {int(k): v for k, v in waypoints.items()}
+            production = data.get("production", {})
+            app.config["PENDING_PRODUCTION"] = {int(k): v for k, v in production.items()}
+            app.config["PENDING_RESEARCH"] = data.get("research", {})
+    except Exception:
+        pass  # corrupted sidecar — start with empty state
+
+
+def _save_pending_orders(app: Flask) -> None:
+    """Write current pending-orders state to sidecar file atomically (temp-rename).
+
+    JSON schema::
+
+        {
+          "waypoints": {"7": [{"x": 150, "y": 225, "warp": 6, "task": "None"}]},
+          "production": {"42": [{"name": "Factory", "quantity": 10, ...}]},
+          "research": {"field": "weapons", "resources": 50}
+        }
+    """
+    path = _sidecar_path(app.config["GAME_DIR"])
+    tmp_path = path + ".tmp"
+    data = {
+        "waypoints": {str(k): v for k, v in app.config["PENDING_WAYPOINTS"].items()},
+        "production": {str(k): v for k, v in app.config["PENDING_PRODUCTION"].items()},
+        "research": app.config["PENDING_RESEARCH"],
+    }
+    try:
+        with open(tmp_path, "w", encoding="utf-8") as fh:
+            json.dump(data, fh, indent=2)
+        os.replace(tmp_path, path)  # atomic on POSIX; best-effort on Windows
+    except OSError:
+        # Silently skip persistence if game dir is read-only (e.g., test fixtures)
+        pass
+
+
+def _delete_sidecar(app: Flask) -> None:
+    """Remove sidecar file after successful turn submission."""
+    path = _sidecar_path(app.config["GAME_DIR"])
+    try:
+        os.remove(path)
+    except FileNotFoundError:
+        pass
+
 
 def _load_cache_manifest() -> dict[str, str]:
     """Load cache-buster hashes from the manifest file.
@@ -57,8 +124,11 @@ def create_app(game_dir: str | None = None) -> Flask:
     # In-memory pending orders (not yet written to .x1)
     app.config["PENDING_WAYPOINTS"] = {}  # fleet_id -> [{x, y, warp, task}]
     app.config["PENDING_PRODUCTION"] = {}  # planet_id -> [{name, quantity}]
+    app.config["PENDING_RESEARCH"] = {}  # {"field": str, "resources": int} or {}
     # Cache-buster hashes for web assets
     app.config["CACHE_HASHES"] = _load_cache_manifest()
+    # Restore pending orders that survived a server restart
+    _load_pending_orders(app)
 
     _changelog_path = os.path.join(os.path.dirname(__file__), "changelog.json")
 
@@ -89,6 +159,7 @@ def create_app(game_dir: str | None = None) -> Flask:
 
         pending_wp = app.config["PENDING_WAYPOINTS"]
         pending_prod = app.config["PENDING_PRODUCTION"]
+        pending_research = app.config["PENDING_RESEARCH"]
 
         planets = []
         for p in state.planets:
@@ -171,7 +242,7 @@ def create_app(game_dir: str | None = None) -> Flask:
                 "turn": state.turn,
                 "version": state.version,
                 "player_index": state.player_index,
-                "has_pending_orders": bool(pending_wp) or bool(pending_prod),
+                "has_pending_orders": bool(pending_wp) or bool(pending_prod) or bool(pending_research),
                 "settings": {
                     "game_name": state.settings.game_name,
                     "universe_size": state.settings.universe_size_label,
@@ -182,6 +253,7 @@ def create_app(game_dir: str | None = None) -> Flask:
                 "planets": planets,
                 "fleets": fleets,
                 "designs": designs,
+                "pending_research": pending_research,
             }
         )
 
@@ -208,6 +280,7 @@ def create_app(game_dir: str | None = None) -> Flask:
             for wp in wps
         ]
         app.config["PENDING_WAYPOINTS"][fleet_id] = stored
+        _save_pending_orders(app)
         return jsonify({"fleet_id": fleet_id, "waypoints": stored})
 
     @app.route("/api/planet/<int:planet_id>/production", methods=["POST"])
@@ -231,7 +304,40 @@ def create_app(game_dir: str | None = None) -> Flask:
             for item in body
         ]
         app.config["PENDING_PRODUCTION"][planet_id] = stored
+        _save_pending_orders(app)
         return jsonify(stored)
+
+    @app.route("/api/research", methods=["POST"])
+    def api_research():
+        """Store pending research field allocation.
+
+        Accepts JSON body::
+
+            {"field": "weapons", "resources": 50}
+
+        Returns:
+            200 with ``{"status": "pending", "field": ..., "resources": ...}``
+            422 for invalid field name or non-integer/negative resources.
+        """
+        body = request.get_json(silent=True) or {}
+        field = body.get("field")
+        resources = body.get("resources")
+
+        if field not in _RESEARCH_FIELDS:
+            return (
+                jsonify(
+                    {
+                        "error": f"Invalid field '{field}'. Must be one of: {sorted(_RESEARCH_FIELDS)}"
+                    }
+                ),
+                422,
+            )
+        if not isinstance(resources, int) or isinstance(resources, bool) or resources < 0:
+            return jsonify({"error": "'resources' must be a non-negative integer"}), 422
+
+        app.config["PENDING_RESEARCH"] = {"field": field, "resources": resources}
+        _save_pending_orders(app)
+        return jsonify({"status": "pending", "field": field, "resources": resources})
 
     @app.route("/api/planet/<int:planet_id>")
     def api_planet(planet_id: int):
@@ -622,6 +728,8 @@ def create_app(game_dir: str | None = None) -> Flask:
         if result.returncode == 0:
             app.config["PENDING_WAYPOINTS"].clear()
             app.config["PENDING_PRODUCTION"].clear()
+            app.config["PENDING_RESEARCH"].clear()
+            _delete_sidecar(app)
             return jsonify({"status": "ok", "log": log, "turn": turn})
 
         return (

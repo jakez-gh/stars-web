@@ -891,3 +891,171 @@ class TestNewRoutesSmoke:
             for route in self.NEW_ROUTES:
                 resp = client.get(route)
                 assert resp.status_code < 500, f"{route} returned {resp.status_code}"
+
+
+class TestResearchOrdersAPI:
+    """Tests for POST /api/research (issue #85)."""
+
+    def test_route_exists(self):
+        app = create_app(game_dir=TEST_DATA_DIR)
+        rules = [r.rule for r in app.url_map.iter_rules()]
+        assert "/api/research" in rules
+
+    def test_valid_post_returns_200(self):
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            resp = client.post("/api/research", json={"field": "weapons", "resources": 50})
+            assert resp.status_code == 200
+
+    def test_valid_post_returns_pending_body(self):
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            data = client.post(
+                "/api/research", json={"field": "weapons", "resources": 50}
+            ).get_json()
+            assert data["status"] == "pending"
+            assert data["field"] == "weapons"
+            assert data["resources"] == 50
+
+    def test_invalid_field_returns_422(self):
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            resp = client.post("/api/research", json={"field": "magic", "resources": 50})
+            assert resp.status_code == 422
+
+    def test_missing_field_returns_422(self):
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            resp = client.post("/api/research", json={"resources": 50})
+            assert resp.status_code == 422
+
+    def test_negative_resources_returns_422(self):
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            resp = client.post("/api/research", json={"field": "weapons", "resources": -1})
+            assert resp.status_code == 422
+
+    def test_string_resources_returns_422(self):
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            resp = client.post(
+                "/api/research", json={"field": "weapons", "resources": "fifty"}
+            )
+            assert resp.status_code == 422
+
+    def test_all_valid_fields_accepted(self):
+        valid_fields = [
+            "energy",
+            "weapons",
+            "propulsion",
+            "construction",
+            "electronics",
+            "biotechnology",
+        ]
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            for field in valid_fields:
+                resp = client.post("/api/research", json={"field": field, "resources": 0})
+                assert resp.status_code == 200, f"Field '{field}' should be accepted"
+
+    def test_pending_visible_in_game_state(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            client.post("/api/research", json={"field": "propulsion", "resources": 25})
+            state = client.get("/api/game-state").get_json()
+            assert state["pending_research"]["field"] == "propulsion"
+            assert state["pending_research"]["resources"] == 25
+
+    def test_has_pending_orders_true_with_research(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            client.post("/api/research", json={"field": "energy", "resources": 10})
+            state = client.get("/api/game-state").get_json()
+            assert state["has_pending_orders"] is True
+
+
+@pytest.mark.uses_sidecar
+class TestSidecarPersistence:
+    """Tests for JSON sidecar persistence surviving server restarts (issue #126)."""    
+
+    def test_waypoint_post_writes_sidecar(self, tmp_path):
+        app = create_app(game_dir=str(tmp_path))
+        with app.test_client() as client:
+            client.post(
+                "/api/fleet/7/waypoints",
+                json={"waypoints": [{"x": 150, "y": 225, "warp": 6, "task": "None"}]},
+            )
+        import json
+
+        sidecar = tmp_path / ".orders_pending.json"
+        assert sidecar.exists()
+        data = json.loads(sidecar.read_text())
+        assert "7" in data["waypoints"]
+        assert data["waypoints"]["7"][0]["x"] == 150
+
+    def test_production_post_writes_sidecar(self, tmp_path):
+        app = create_app(game_dir=str(tmp_path))
+        with app.test_client() as client:
+            client.post(
+                "/api/planet/42/production",
+                json=[{"name": "Factory", "quantity": 10}],
+            )
+        import json
+
+        sidecar = tmp_path / ".orders_pending.json"
+        assert sidecar.exists()
+        data = json.loads(sidecar.read_text())
+        assert "42" in data["production"]
+
+    def test_research_post_writes_sidecar(self, tmp_path):
+        app = create_app(game_dir=str(tmp_path))
+        with app.test_client() as client:
+            client.post("/api/research", json={"field": "weapons", "resources": 50})
+        import json
+
+        sidecar = tmp_path / ".orders_pending.json"
+        assert sidecar.exists()
+        data = json.loads(sidecar.read_text())
+        assert data["research"]["field"] == "weapons"
+        assert data["research"]["resources"] == 50
+
+    def test_sidecar_loaded_on_restart(self, tmp_path):
+        """Orders written by first-app instance survive into a second (restart simulation)."""
+        import json
+
+        sidecar = tmp_path / ".orders_pending.json"
+        sidecar.write_text(
+            json.dumps(
+                {
+                    "waypoints": {
+                        "7": [{"x": 150, "y": 225, "warp": 6, "task": "None"}]
+                    },
+                    "production": {
+                        "42": [
+                            {
+                                "name": "Factory",
+                                "quantity": 10,
+                                "count": 10,
+                                "complete_percent": 0,
+                            }
+                        ]
+                    },
+                    "research": {"field": "weapons", "resources": 50},
+                }
+            )
+        )
+        app2 = create_app(game_dir=str(tmp_path))
+        assert app2.config["PENDING_WAYPOINTS"][7][0]["x"] == 150
+        assert app2.config["PENDING_PRODUCTION"][42][0]["name"] == "Factory"
+        assert app2.config["PENDING_RESEARCH"]["field"] == "weapons"
+
+    def test_corrupted_sidecar_ignored_on_startup(self, tmp_path):
+        """A malformed sidecar does not crash the app; pending dicts start empty."""
+        sidecar = tmp_path / ".orders_pending.json"
+        sidecar.write_text("{broken json!!")
+        app = create_app(game_dir=str(tmp_path))
+        assert app.config["PENDING_WAYPOINTS"] == {}
+        assert app.config["PENDING_PRODUCTION"] == {}
+        assert app.config["PENDING_RESEARCH"] == {}

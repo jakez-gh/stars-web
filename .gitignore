@@ -14,3 +14,6 @@ docs/tmp/
 .hypothesis/
 src/stars_web/static/._build_manifest.json
 src/stars_web/static/._cache_manifest.json
+# Pending-orders sidecar (written at runtime; must not be committed)
+.orders_pending.json
+.orders_pending.json.tmp
