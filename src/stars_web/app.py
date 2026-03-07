@@ -233,6 +233,240 @@ def create_app(game_dir: str | None = None) -> Flask:
         app.config["PENDING_PRODUCTION"][planet_id] = stored
         return jsonify(stored)
 
+    @app.route("/api/planet/<int:planet_id>")
+    def api_planet(planet_id: int):
+        """Return full detail for a single planet by ID."""
+        try:
+            state = load_game(app.config["GAME_DIR"])
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+        planet = next((p for p in state.planets if p.planet_id == planet_id), None)
+        if planet is None:
+            return jsonify({"error": f"Planet {planet_id} not found"}), 404
+
+        pending_prod = app.config["PENDING_PRODUCTION"]
+        queue = state.production_queues.get(planet.planet_id, [])
+        serialized_queue = [
+            {
+                "name": qi.item_name,
+                "count": qi.count,
+                "quantity": qi.count,
+                "complete_percent": qi.complete_percent,
+            }
+            for qi in queue
+        ]
+        if planet.planet_id in pending_prod:
+            serialized_queue = pending_prod[planet.planet_id]
+
+        return jsonify(
+            {
+                "id": planet.planet_id,
+                "name": planet.name,
+                "x": planet.x,
+                "y": planet.y,
+                "owner": planet.owner,
+                "population": planet.population,
+                "mines": planet.mines,
+                "factories": planet.factories,
+                "defenses": planet.defenses,
+                "ironium": planet.ironium,
+                "boranium": planet.boranium,
+                "germanium": planet.germanium,
+                "ironium_conc": planet.ironium_conc,
+                "boranium_conc": planet.boranium_conc,
+                "germanium_conc": planet.germanium_conc,
+                "gravity": planet.gravity,
+                "temperature": planet.temperature,
+                "radiation": planet.radiation,
+                "has_starbase": planet.has_starbase,
+                "is_homeworld": planet.is_homeworld,
+                "production_queue": serialized_queue,
+            }
+        )
+
+    @app.route("/api/fleet/<int:fleet_id>")
+    def api_fleet(fleet_id: int):
+        """Return full detail for a single fleet by ID."""
+        try:
+            state = load_game(app.config["GAME_DIR"])
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+        fleet = next((f for f in state.fleets if f.fleet_id == fleet_id), None)
+        if fleet is None:
+            return jsonify({"error": f"Fleet {fleet_id} not found"}), 404
+
+        pending_wp = app.config["PENDING_WAYPOINTS"]
+        waypoints = [
+            {"x": wp.x, "y": wp.y, "warp": wp.warp, "task": wp.task_name}
+            for wp in fleet.waypoints
+        ]
+        if fleet.fleet_id in pending_wp:
+            waypoints = pending_wp[fleet.fleet_id]
+
+        return jsonify(
+            {
+                "id": fleet.fleet_id,
+                "name": fleet.name,
+                "owner": fleet.owner,
+                "x": fleet.x,
+                "y": fleet.y,
+                "ship_count": fleet.ship_count,
+                "waypoints": waypoints,
+            }
+        )
+
+    @app.route("/api/players")
+    def api_players():
+        """Return all player/race records parsed from Type 6 blocks."""
+        try:
+            state = load_game(app.config["GAME_DIR"])
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+        return jsonify(
+            [
+                {
+                    "player_number": p.player_number,
+                    "name": p.name_singular,
+                    "name_plural": p.name_plural,
+                    "ship_designs": p.ship_designs,
+                    "planets": p.planets,
+                    "fleets": p.fleets,
+                    "starbase_designs": p.starbase_designs,
+                    "logo": p.logo,
+                    "has_full_data": p.has_full_data,
+                    "prt": p.prt,
+                    "prt_name": p.prt_name,
+                    "tech": (
+                        {
+                            "energy": p.tech_energy,
+                            "weapons": p.tech_weapons,
+                            "propulsion": p.tech_propulsion,
+                            "construction": p.tech_construction,
+                            "electronics": p.tech_electronics,
+                            "biotech": p.tech_biotech,
+                        }
+                        if p.has_full_data
+                        else None
+                    ),
+                    "relations": p.relations,
+                }
+                for p in state.players
+            ]
+        )
+
+    @app.route("/api/score")
+    def api_score():
+        """Return per-player score snapshots parsed from Type 45 blocks."""
+        try:
+            state = load_game(app.config["GAME_DIR"])
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+        return jsonify(
+            [
+                {
+                    "player_id": s.player_id,
+                    "num_planets": s.num_planets,
+                    "total_score": s.total_score,
+                    "resources_a": s.resources_a,
+                    "starbases": s.starbases,
+                    "ships_unarmed": s.ships_unarmed,
+                    "ships_escort": s.ships_escort,
+                    "ships_capital": s.ships_capital,
+                    "tech_score": s.tech_score,
+                    "rank": s.rank,
+                }
+                for s in state.player_scores
+            ]
+        )
+
+    @app.route("/api/designs")
+    def api_designs():
+        """Return all full ship/starbase designs (own player only)."""
+        try:
+            state = load_game(app.config["GAME_DIR"])
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+        return jsonify(
+            [
+                {
+                    "id": d.design_number,
+                    "name": d.name,
+                    "hull_id": d.hull_id,
+                    "hull_name": d.hull_name,
+                    "is_starbase": d.is_starbase,
+                    "armor": d.armor,
+                    "slot_count": d.slot_count,
+                    "turn_designed": d.turn_designed,
+                    "total_built": d.total_built,
+                    "total_remaining": d.total_remaining,
+                }
+                for d in state.designs
+                if d.is_full_design
+            ]
+        )
+
+    @app.route("/api/battles")
+    def api_battles():
+        """Return all battle records from the current turn (Type 31 blocks)."""
+        try:
+            state = load_game(app.config["GAME_DIR"])
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+        return jsonify(
+            [
+                {
+                    "battle_id": b.battle_id,
+                    "x": b.x,
+                    "y": b.y,
+                    "num_tokens": b.num_tokens,
+                    "event_bytes": len(b.events_raw),
+                }
+                for b in state.battles
+            ]
+        )
+
+    @app.route("/api/minefields")
+    def api_minefields():
+        """Return all minefields visible to the current player (from Type 25 blocks)."""
+        from stars_web.binary.game_object import Minefield
+
+        try:
+            state = load_game(app.config["GAME_DIR"])
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+        return jsonify(
+            [
+                {
+                    "x": obj.x,
+                    "y": obj.y,
+                    "owner": obj.owner,
+                    "radius": obj.radius,
+                    "quantity": obj.quantity,
+                }
+                for obj in state.objects
+                if isinstance(obj, Minefield)
+            ]
+        )
+
+    @app.route("/api/messages")
+    def api_messages():
+        """Return all turn messages from Type 24 blocks."""
+        try:
+            state = load_game(app.config["GAME_DIR"])
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+        return jsonify(
+            [{"action_code": m.action_code, "text": m.text} for m in state.messages]
+        )
+
     @app.route("/game/submit-turn", methods=["POST"])
     def api_submit_turn():
         """Write pending orders to .x1 and invoke the Stars! host binary.

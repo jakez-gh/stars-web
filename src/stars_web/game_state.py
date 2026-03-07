@@ -23,6 +23,14 @@ from stars_web.binary.event import (
     Event,
     decode_events,
 )
+from stars_web.binary.battle_record import (
+    BattleRecord,
+    decode_battle_block,
+)
+from stars_web.binary.player_scores import (
+    PlayerScore,
+    decode_player_score,
+)
 
 
 # Universe size labels by ID
@@ -109,6 +117,12 @@ BLOCK_TYPE_OBJECT = 25
 
 # Block type constant for events
 BLOCK_TYPE_EVENT = 12
+
+# Block type constant for battle records
+BLOCK_TYPE_BATTLE = 31
+
+# Block type constant for player scores
+BLOCK_TYPE_PLAYER_SCORES = 45
 
 # Primary Racial Trait names by ID
 PRT_NAMES = {
@@ -312,6 +326,8 @@ class GameState:
     messages: list[TurnMessage] = field(default_factory=list)
     objects: list = field(default_factory=list)  # Minefield, Wormhole, Salvage, Packet
     events: list[Event] = field(default_factory=list)
+    battles: list[BattleRecord] = field(default_factory=list)
+    player_scores: list[PlayerScore] = field(default_factory=list)
 
 
 def parse_design_block(block: Block) -> ShipDesign | None:
@@ -899,5 +915,17 @@ def load_game(game_dir: str, player: int = 0) -> GameState:
                 player = parse_player_block(block)
                 if player is not None:
                     state.players.append(player)
+            elif block.type_id == BLOCK_TYPE_BATTLE:
+                try:
+                    br = decode_battle_block(block.data)
+                    state.battles.append(br)
+                except (ValueError, struct.error):
+                    pass  # Incomplete battle block; skip gracefully
+            elif block.type_id == BLOCK_TYPE_PLAYER_SCORES:
+                try:
+                    ps = decode_player_score(block.data)
+                    state.player_scores.append(ps)
+                except (ValueError, struct.error):
+                    pass  # Malformed score block; skip gracefully
 
     return state

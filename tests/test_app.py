@@ -549,3 +549,345 @@ class TestSubmitTurnAPI:
 
         assert resp.status_code == 200
         assert not app.config["PENDING_PRODUCTION"]
+
+
+class TestPlanetDetailAPI:
+    """Tests for GET /api/planet/<id>."""
+
+    def test_route_exists(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        rules = [r.rule for r in app.url_map.iter_rules()]
+        assert "/api/planet/<int:planet_id>" in rules
+
+    def test_known_planet_returns_200(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            data = client.get("/api/game-state").get_json()
+            pid = data["planets"][0]["id"]
+            resp = client.get(f"/api/planet/{pid}")
+            assert resp.status_code == 200
+
+    def test_unknown_planet_returns_404(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            resp = client.get("/api/planet/99999")
+            assert resp.status_code == 404
+
+    def test_planet_has_required_fields(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            data = client.get("/api/game-state").get_json()
+            pid = data["planets"][0]["id"]
+            planet = client.get(f"/api/planet/{pid}").get_json()
+            for field in ["id", "name", "x", "y", "owner", "production_queue"]:
+                assert field in planet, f"Missing field: {field}"
+
+    def test_invalid_game_dir_returns_500(self):
+        app = create_app(game_dir="/nonexistent/path")
+        with app.test_client() as client:
+            resp = client.get("/api/planet/0")
+            assert resp.status_code == 500
+
+    def test_pending_production_reflected(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            data = client.get("/api/game-state").get_json()
+            pid = data["planets"][0]["id"]
+            client.post(
+                f"/api/planet/{pid}/production",
+                json=[{"name": "Mine", "quantity": 3}],
+            )
+            planet = client.get(f"/api/planet/{pid}").get_json()
+            assert planet["production_queue"][0]["name"] == "Mine"
+
+
+class TestFleetDetailAPI:
+    """Tests for GET /api/fleet/<id>."""
+
+    def test_route_exists(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        rules = [r.rule for r in app.url_map.iter_rules()]
+        assert "/api/fleet/<int:fleet_id>" in rules
+
+    def test_known_fleet_returns_200(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            data = client.get("/api/game-state").get_json()
+            fid = data["fleets"][0]["id"]
+            resp = client.get(f"/api/fleet/{fid}")
+            assert resp.status_code == 200
+
+    def test_unknown_fleet_returns_404(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            resp = client.get("/api/fleet/99999")
+            assert resp.status_code == 404
+
+    def test_fleet_has_required_fields(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            data = client.get("/api/game-state").get_json()
+            fid = data["fleets"][0]["id"]
+            fleet = client.get(f"/api/fleet/{fid}").get_json()
+            for field in ["id", "name", "x", "y", "owner", "waypoints", "ship_count"]:
+                assert field in fleet, f"Missing field: {field}"
+
+    def test_invalid_game_dir_returns_500(self):
+        app = create_app(game_dir="/nonexistent/path")
+        with app.test_client() as client:
+            resp = client.get("/api/fleet/0")
+            assert resp.status_code == 500
+
+    def test_pending_waypoints_reflected(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            data = client.get("/api/game-state").get_json()
+            fid = data["fleets"][0]["id"]
+            client.post(
+                f"/api/fleet/{fid}/waypoints",
+                json={"waypoints": [{"x": 50, "y": 60, "warp": 6}]},
+            )
+            fleet = client.get(f"/api/fleet/{fid}").get_json()
+            assert fleet["waypoints"][0]["x"] == 50
+
+
+class TestPlayersAPI:
+    """Tests for GET /api/players."""
+
+    def test_route_exists(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        rules = [r.rule for r in app.url_map.iter_rules()]
+        assert "/api/players" in rules
+
+    def test_returns_list(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            data = client.get("/api/players").get_json()
+            assert isinstance(data, list)
+            assert len(data) >= 1
+
+    def test_player_has_required_fields(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            player = client.get("/api/players").get_json()[0]
+            for field in ["player_number", "name", "name_plural", "prt_name"]:
+                assert field in player, f"Missing field: {field}"
+
+    def test_full_player_has_tech(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            players = client.get("/api/players").get_json()
+            full = [p for p in players if p["has_full_data"]]
+            if full:
+                assert full[0]["tech"] is not None
+                assert "energy" in full[0]["tech"]
+
+    def test_invalid_game_dir_returns_500(self):
+        app = create_app(game_dir="/nonexistent/path")
+        with app.test_client() as client:
+            resp = client.get("/api/players")
+            assert resp.status_code == 500
+
+
+class TestScoreAPI:
+    """Tests for GET /api/score."""
+
+    def test_route_exists(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        rules = [r.rule for r in app.url_map.iter_rules()]
+        assert "/api/score" in rules
+
+    def test_returns_list(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            data = client.get("/api/score").get_json()
+            assert isinstance(data, list)
+
+    def test_score_has_required_fields(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            scores = client.get("/api/score").get_json()
+            if scores:
+                for field in ["player_id", "total_score", "num_planets"]:
+                    assert field in scores[0], f"Missing field: {field}"
+
+    def test_invalid_game_dir_returns_500(self):
+        app = create_app(game_dir="/nonexistent/path")
+        with app.test_client() as client:
+            resp = client.get("/api/score")
+            assert resp.status_code == 500
+
+
+class TestDesignsAPI:
+    """Tests for GET /api/designs."""
+
+    def test_route_exists(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        rules = [r.rule for r in app.url_map.iter_rules()]
+        assert "/api/designs" in rules
+
+    def test_returns_list(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            data = client.get("/api/designs").get_json()
+            assert isinstance(data, list)
+
+    def test_design_has_required_fields(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            designs = client.get("/api/designs").get_json()
+            if designs:
+                for field in ["id", "name", "hull_name", "is_starbase", "armor"]:
+                    assert field in designs[0], f"Missing field: {field}"
+
+    def test_only_full_designs_returned(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            designs = client.get("/api/designs").get_json()
+            # All returned designs should have armor field (full designs only)
+            for d in designs:
+                assert "armor" in d
+
+    def test_invalid_game_dir_returns_500(self):
+        app = create_app(game_dir="/nonexistent/path")
+        with app.test_client() as client:
+            resp = client.get("/api/designs")
+            assert resp.status_code == 500
+
+
+class TestBattlesAPI:
+    """Tests for GET /api/battles."""
+
+    def test_route_exists(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        rules = [r.rule for r in app.url_map.iter_rules()]
+        assert "/api/battles" in rules
+
+    def test_returns_list(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            data = client.get("/api/battles").get_json()
+            assert isinstance(data, list)
+
+    def test_battle_has_required_fields(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            battles = client.get("/api/battles").get_json()
+            if battles:
+                for field in ["battle_id", "x", "y", "num_tokens"]:
+                    assert field in battles[0], f"Missing field: {field}"
+
+    def test_invalid_game_dir_returns_500(self):
+        app = create_app(game_dir="/nonexistent/path")
+        with app.test_client() as client:
+            resp = client.get("/api/battles")
+            assert resp.status_code == 500
+
+
+class TestMinefieldsAPI:
+    """Tests for GET /api/minefields."""
+
+    def test_route_exists(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        rules = [r.rule for r in app.url_map.iter_rules()]
+        assert "/api/minefields" in rules
+
+    def test_returns_list(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            data = client.get("/api/minefields").get_json()
+            assert isinstance(data, list)
+
+    def test_minefield_has_required_fields(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            fields_response = client.get("/api/minefields").get_json()
+            if fields_response:
+                for field in ["x", "y", "owner", "radius", "quantity"]:
+                    assert field in fields_response[0], f"Missing field: {field}"
+
+    def test_invalid_game_dir_returns_500(self):
+        app = create_app(game_dir="/nonexistent/path")
+        with app.test_client() as client:
+            resp = client.get("/api/minefields")
+            assert resp.status_code == 500
+
+
+class TestMessagesAPI:
+    """Tests for GET /api/messages."""
+
+    def test_route_exists(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        rules = [r.rule for r in app.url_map.iter_rules()]
+        assert "/api/messages" in rules
+
+    def test_returns_list(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            data = client.get("/api/messages").get_json()
+            assert isinstance(data, list)
+
+    def test_message_has_required_fields(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            messages = client.get("/api/messages").get_json()
+            if messages:
+                for field in ["action_code", "text"]:
+                    assert field in messages[0], f"Missing field: {field}"
+
+    def test_invalid_game_dir_returns_500(self):
+        app = create_app(game_dir="/nonexistent/path")
+        with app.test_client() as client:
+            resp = client.get("/api/messages")
+            assert resp.status_code == 500
+
+
+class TestNewRoutesSmoke:
+    """Smoke tests: all new endpoints return non-5xx with valid game data."""
+
+    NEW_ROUTES = [
+        "/api/players",
+        "/api/score",
+        "/api/designs",
+        "/api/battles",
+        "/api/minefields",
+        "/api/messages",
+    ]
+
+    def test_no_new_route_returns_5xx(self):
+        _skip_if_no_data()
+        app = create_app(game_dir=TEST_DATA_DIR)
+        with app.test_client() as client:
+            for route in self.NEW_ROUTES:
+                resp = client.get(route)
+                assert resp.status_code < 500, f"{route} returned {resp.status_code}"

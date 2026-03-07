@@ -23,7 +23,7 @@ as the original Stars! fat client (v2.6/2.7). Project last updated: 2026-03-07.
 | Folder | Description |
 | ------ | ----------- |
 | `src/stars_web/` | Core library — file parsers, game state, Flask web server, binary decoders |
-| `tests/` | pytest suite — 1140 tests, 83.82% coverage |
+| `tests/` | pytest suite — 1176 tests, 84.42% coverage |
 | `docs/` | Documentation, format guides, LLM agent artifacts |
 | `.github/` | GitHub CI/CD workflows and Copilot configuration |
 | `.githooks/` | Portable git hooks committed to repo; activated with `git config core.hooksPath .githooks` |
