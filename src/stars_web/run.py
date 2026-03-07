@@ -80,41 +80,48 @@ def kill_port(port: int) -> bool:
 
 def main() -> None:
     """Start the web server with deterministic port allocation."""
-    # Set up lifecycle management for graceful shutdown
-    lifecycle = setup_lifecycle_manager()
-
     # Get the assigned port for this workspace
     port = get_assigned_port()
 
-    # Attempt to acquire the lock (waits up to 30 seconds for existing process)
-    print(f"Acquiring lock for port {port}...")
-    if not acquire_lock(port, timeout=30.0):
-        print(f"ERROR: Could not acquire lock for port {port}")
-        print("Another instance may be running or the port is stuck.")
-        print("Try manually killing any process on this port or wait a minute.")
-        sys.exit(1)
+    # The Werkzeug reloader spawns a child process (WERKZEUG_RUN_MAIN=true).
+    # Only the outer launcher process needs to acquire/release the lock.
+    is_reloader_child = os.environ.get("WERKZEUG_RUN_MAIN") == "true"
 
-    # Register cleanup on exit
-    lifecycle.on_exit(release_lock)
+    if not is_reloader_child:
+        # Set up lifecycle management for graceful shutdown
+        lifecycle = setup_lifecycle_manager()
+
+        # Attempt to acquire the lock (waits up to 30 seconds for existing process)
+        print(f"Acquiring lock for port {port}...")
+        if not acquire_lock(port, timeout=30.0):
+            print(f"ERROR: Could not acquire lock for port {port}")
+            print("Another instance may be running or the port is stuck.")
+            print("Try manually killing any process on this port or wait a minute.")
+            sys.exit(1)
+
+        # Register cleanup on exit
+        lifecycle.on_exit(release_lock)
 
     try:
-        # Kill any existing process on the port (safety measure)
-        if is_port_in_use(port):
-            print(f"Killing existing process on port {port}...")
-            kill_port(port)
+        if not is_reloader_child:
+            # Kill any existing process on the port (safety measure)
+            if is_port_in_use(port):
+                print(f"Killing existing process on port {port}...")
+                kill_port(port)
 
         # Load game directory
         game_dir = sys.argv[1] if len(sys.argv) > 1 else None
         app = create_app(game_dir)
-        print(f"\n{'=' * 60}")
-        print(f"Loading game from: {app.config['GAME_DIR']}")
-        print(f"Star map at http://127.0.0.1:{port}")
-        print(f"Workspace port: {port} (deterministic, consistent across runs)")
-        print(f"{'=' * 60}\n")
 
-        # Only kill the port in the outer launcher process, not in the reloader
-        # WERKZEUG_RUN_MAIN is set to 'true' inside the watchdog child process
-        if os.environ.get("WERKZEUG_RUN_MAIN") != "true":
+        if not is_reloader_child:
+            print(f"\n{'=' * 60}")
+            print(f"Loading game from: {app.config['GAME_DIR']}")
+            print(f"Star map at http://127.0.0.1:{port}")
+            print(f"Workspace port: {port} (deterministic, consistent across runs)")
+            print(f"{'=' * 60}\n")
+
+        # Only run with reloader in the outer launcher process
+        if not is_reloader_child:
             app.run(debug=True, port=port, use_reloader=True)
         else:
             app.run(debug=True, port=port, use_reloader=False)

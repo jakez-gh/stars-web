@@ -10,7 +10,10 @@ Implements deterministic, non-conflicting port allocation:
 import hashlib
 import json
 import os
+import signal
 import socket
+import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -55,6 +58,29 @@ def get_lock_file() -> Path:
     return config_dir / f"{workspace_id}.lock"
 
 
+def kill_pid(pid: int) -> bool:
+    """Send a termination signal to *pid*.
+
+    On POSIX sends SIGTERM; on Windows uses ``taskkill /F /PID``.
+    Returns True if the signal was delivered, False if the PID no longer
+    exists or the operation is not permitted.
+    """
+    try:
+        if sys.platform == "win32":
+            result = subprocess.run(
+                ["taskkill", "/F", "/PID", str(pid)],
+                capture_output=True,
+                timeout=5,
+                check=False,
+            )
+            return result.returncode == 0
+        else:
+            os.kill(pid, signal.SIGTERM)
+            return True
+    except (ProcessLookupError, PermissionError, subprocess.TimeoutExpired):
+        return False
+
+
 def is_port_in_use(port: int) -> bool:
     """Check if a port is currently in use."""
     try:
@@ -88,21 +114,26 @@ def acquire_lock(port: int, timeout: float = 30.0) -> bool:
             try:
                 with open(lock_file, "r") as f:
                     data = json.load(f)
-                    old_pid = data.get("pid")
-                    is_stale = data.get("timestamp", 0) < (now - 60)
+                old_pid = data.get("pid")
+                is_stale = data.get("timestamp", 0) < (now - 60)
 
-                    if old_pid and not is_stale:
-                        # Existing process with fresh lock - check if port is in use
-                        if is_port_in_use(port):
-                            # Wait a bit more
+                if old_pid and not is_stale:
+                    if old_pid == os.getpid():
+                        # This process already holds the lock; refresh timestamp.
+                        pass  # fall through to overwrite
+                    else:
+                        # Active lock held by another process — kill it.
+                        killed = kill_pid(old_pid)
+                        if killed:
+                            # Give the old process a moment to release the port.
+                            time.sleep(1.5)
+                        elif is_port_in_use(port):
+                            # PID already gone but port still bound — wait.
                             time.sleep(1)
                             continue
-                        else:
-                            # Port is free, lock is stale - update it
-                            pass
-                    # Stale lock - overwrite
+                # Stale lock or old process gone — fall through to overwrite.
             except (json.JSONDecodeError, IOError):
-                # Corrupted lock file - overwrite
+                # Corrupted lock file — overwrite.
                 pass
 
         # Write new lock

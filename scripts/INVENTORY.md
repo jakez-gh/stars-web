@@ -1,7 +1,6 @@
 # INVENTORY — scripts/
 
-Developer convenience scripts for first-time project setup.
-Run these once after cloning on a new machine to configure the local development environment.
+Developer convenience scripts for first-time project setup and ongoing quality-gate workflows.
 
 ## Files
 
@@ -10,6 +9,7 @@ Run these once after cloning on a new machine to configure the local development
 | `INVENTORY.md` | This file |
 | `setup-dev.ps1` | PowerShell: creates venv, installs dev dependencies, activates `.githooks/` via `git config core.hooksPath` |
 | `setup-dev.sh` | Bash equivalent of `setup-dev.ps1` for macOS/Linux contributors |
+| `qa_gate.ps1` | PowerShell: runs inventory gate + pytest; on pass kills the dev server and relaunches it with the latest code |
 
 ## Usage
 
@@ -33,6 +33,7 @@ Both scripts:
 ### FILES
 
 - INVENTORY.md
+- qa_gate.ps1
 - setup-dev.ps1
 - setup-dev.sh
 

@@ -9,6 +9,8 @@ These tests serve as executable specifications:
 import json
 import socket
 
+import pytest
+
 from stars_web.port_manager import (
     get_workspace_id,
     get_assigned_port,
@@ -68,6 +70,11 @@ class TestPortAllocation:
 
 class TestLockManagement:
     """Spec: Lock files track port ownership and prevent conflicts."""
+
+    @pytest.fixture(autouse=True)
+    def _isolated_lock(self, tmp_path, monkeypatch):
+        """Redirect lock files to tmp_path so tests never touch the live server lock."""
+        monkeypatch.setattr("stars_web.port_manager.get_lock_file", lambda: tmp_path / "test.lock")
 
     def test_acquire_lock_creates_lock_file(self):
         """Acquiring a lock creates a lock file."""
@@ -143,6 +150,11 @@ class TestPortConflictDetection:
 
 class TestIntegration:
     """Spec: Port manager workflow works end-to-end."""
+
+    @pytest.fixture(autouse=True)
+    def _isolated_lock(self, tmp_path, monkeypatch):
+        """Redirect lock files to tmp_path so tests never touch the live server lock."""
+        monkeypatch.setattr("stars_web.port_manager.get_lock_file", lambda: tmp_path / "test.lock")
 
     def test_full_workflow(self):
         """Full workflow: get ID, allocate port, acquire lock, release lock."""
